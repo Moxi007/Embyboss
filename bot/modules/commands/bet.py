@@ -20,37 +20,38 @@ active_bets: Dict[int, Dict] = {}
 bet_participants: Dict[str, List[Dict]] = {}
 
 
-def parse_duration_parameter(message_text: str) -> tuple[int | None, str | None]:
+def parse_duration_parameter(command_list: list) -> tuple[int | None, str | None]:
     """
     解析游戏时长参数
     
     参数:
-        message_text: 完整的命令文本，例如 "/startbet 10"
+        command_list: pyrogram 的 message.command 列表
+                     例如 ["startbet", "3"] 或 ["startbet", "dice", "3"]
     
     返回:
         (duration, error_message) 元组
         - duration: 解析出的时长（分钟），None 表示使用默认值
         - error_message: 错误信息，None 表示解析成功
     """
-    LOGGER.info(f"解析游戏时长参数，输入: {message_text}")
-    # 使用空格分割命令文本
-    parts = message_text.split()
+    LOGGER.info(f"解析游戏时长参数，command_list: {command_list}")
     
-    # 如果只有命令本身，返回 None 表示使用默认值
-    if len(parts) == 1:
+    # 如果只有命令本身（长度为1），返回 None 表示使用默认值
+    if not command_list or len(command_list) <= 1:
         LOGGER.info("未提供时长参数，将使用默认值")
         return (None, None)
     
-    # 如果有第二个参数，尝试将其转换为整数
-    if len(parts) >= 2:
-        try:
-            duration = int(parts[1])
-            LOGGER.info(f"成功解析时长参数: {duration} 分钟")
-            return (duration, None)
-        except ValueError:
-            LOGGER.warning(f"时长参数格式无效: {parts[1]}")
-            return (None, "❌ 请输入有效的游戏时长（1-30 分钟的整数）")
+    # 遍历参数寻找代表时长的数字（跳过第一个元素，即命令本身）
+    for arg in command_list[1:]:
+        if arg.isdigit():
+            try:
+                duration = int(arg)
+                LOGGER.info(f"成功解析时长参数: {duration} 分钟")
+                return (duration, None)
+            except ValueError:
+                pass
     
+    # 如果带了参数但没有找到数字（可能只带了 dice 参数），则返回默认
+    LOGGER.info("未找到有效的时长参数，将使用默认值")
     return (None, None)
 
 
@@ -451,7 +452,7 @@ async def handle_startbet_command(client, message):
     asyncio.create_task(deleteMessage(message, 0))
     chat_id = message.chat.id
     user_id = message.from_user.id
-    message_text = message.text
+    message_text = message.text or message.caption or ""
 
     user = sql_get_emby(user_id)
     if not user:
@@ -466,7 +467,7 @@ async def handle_startbet_command(client, message):
             return
 
     # 解析游戏时长参数
-    duration, parse_error = parse_duration_parameter(message_text)
+    duration, parse_error = parse_duration_parameter(message.command)
     if parse_error:
         error_message = await message.reply_text(parse_error)
         asyncio.create_task(deleteMessage(error_message, 60))
