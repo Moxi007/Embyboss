@@ -32,19 +32,23 @@ def parse_duration_parameter(message_text: str) -> tuple[int | None, str | None]
         - duration: 解析出的时长（分钟），None 表示使用默认值
         - error_message: 错误信息，None 表示解析成功
     """
+    LOGGER.info(f"解析游戏时长参数，输入: {message_text}")
     # 使用空格分割命令文本
     parts = message_text.split()
     
     # 如果只有命令本身，返回 None 表示使用默认值
     if len(parts) == 1:
+        LOGGER.info("未提供时长参数，将使用默认值")
         return (None, None)
     
     # 如果有第二个参数，尝试将其转换为整数
     if len(parts) >= 2:
         try:
             duration = int(parts[1])
+            LOGGER.info(f"成功解析时长参数: {duration} 分钟")
             return (duration, None)
         except ValueError:
+            LOGGER.warning(f"时长参数格式无效: {parts[1]}")
             return (None, "❌ 请输入有效的游戏时长（1-30 分钟的整数）")
     
     return (None, None)
@@ -82,6 +86,7 @@ class BettingSystem:
 
     async def start_bet(self, chat_id: int, user_id: int, message_text: str = "", duration_minutes: int = 5) -> str:
         """创建新的赌局"""
+        LOGGER.info(f"创建赌局，chat_id: {chat_id}, user_id: {user_id}, duration_minutes: {duration_minutes}")
         # 检查是否已有进行中的赌局
         if chat_id in self.active_bets:
             return "🚫 当前已有进行中的赌局，请等待结束后再开始新的赌局"
@@ -302,6 +307,7 @@ class BettingSystem:
     async def _auto_draw(self, chat_id: int, bet_id: str, duration_minutes: int = 5):
         """自动开奖"""
         wait_seconds = duration_minutes * 60
+        LOGGER.info(f"启动自动开奖任务，等待时间: {wait_seconds} 秒 ({duration_minutes} 分钟)")
         await asyncio.sleep(wait_seconds)
         
         if chat_id not in self.active_bets:
@@ -477,6 +483,8 @@ async def handle_startbet_command(client, message):
     # 如果没有提供时长参数，使用默认值 5 分钟
     if duration is None:
         duration = 5
+    
+    LOGGER.info(f"用户 {user_id} 创建赌局，解析的时长: {duration} 分钟")
 
     # 检查用户金币是否足够支付手续费
     if user.iv < game.magnification:
