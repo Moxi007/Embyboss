@@ -19,6 +19,58 @@ active_bets: Dict[int, Dict] = {}
 # 存储参与者信息 (bet_id -> list of participants)
 bet_participants: Dict[str, List[Dict]] = {}
 
+
+def parse_duration_parameter(message_text: str) -> tuple[int | None, str | None]:
+    """
+    解析游戏时长参数
+    
+    参数:
+        message_text: 完整的命令文本，例如 "/startbet 10"
+    
+    返回:
+        (duration, error_message) 元组
+        - duration: 解析出的时长（分钟），None 表示使用默认值
+        - error_message: 错误信息，None 表示解析成功
+    """
+    # 使用空格分割命令文本
+    parts = message_text.split()
+    
+    # 如果只有命令本身，返回 None 表示使用默认值
+    if len(parts) == 1:
+        return (None, None)
+    
+    # 如果有第二个参数，尝试将其转换为整数
+    if len(parts) >= 2:
+        try:
+            duration = int(parts[1])
+            return (duration, None)
+        except ValueError:
+            return (None, "❌ 请输入有效的游戏时长（1-30 分钟的整数）")
+    
+    return (None, None)
+
+
+def validate_duration(duration: int) -> tuple[bool, str | None]:
+    """
+    验证游戏时长是否有效
+    
+    参数:
+        duration: 游戏时长（分钟）
+    
+    返回:
+        (is_valid, error_message) 元组
+        - is_valid: 是否有效
+        - error_message: 错误信息，None 表示验证通过
+    """
+    if duration < 1:
+        return (False, "❌ 游戏时长不能少于 1 分钟")
+    
+    if duration > 30:
+        return (False, "❌ 游戏时长不能超过 30 分钟")
+    
+    return (True, None)
+
+
 class BettingSystem:
     def __init__(self):
         self.active_bets = active_bets
@@ -28,7 +80,7 @@ class BettingSystem:
         if chat_id in self.active_bets:
             self.active_bets[chat_id]['start_message_id'] = message_id
 
-    async def start_bet(self, chat_id: int, user_id: int, message_text: str = "") -> str:
+    async def start_bet(self, chat_id: int, user_id: int, message_text: str = "", duration_minutes: int = 5) -> str:
         """创建新的赌局"""
         # 检查是否已有进行中的赌局
         if chat_id in self.active_bets:
@@ -50,7 +102,8 @@ class BettingSystem:
             'status': 1,
             'random_type': random_type,
             'create_time': datetime.now(),
-            'end_time': datetime.now() + timedelta(minutes=5),
+            'end_time': datetime.now() + timedelta(minutes=duration_minutes),
+            'duration_minutes': duration_minutes,
             'total_amount': 0,
             'big_amount': 0,
             'small_amount': 0,
@@ -60,16 +113,22 @@ class BettingSystem:
         self.active_bets[chat_id] = bet_info
         self.participants[bet_id] = []
 
-        asyncio.create_task(self._auto_draw(chat_id, bet_id))
+        asyncio.create_task(self._auto_draw(chat_id, bet_id, duration_minutes))
 
         user_link = await get_fullname_with_link(user_id)
 
         random_method = 'Telegram骰子' if random_type == 'dice' else '系统随机'
         
+        # 生成游戏时长信息
+        duration_text = f"游戏时长：{duration_minutes} 分钟"
+        if duration_minutes == 5:
+            duration_text += "（默认）"
+        
         return f"""🎲 新的赌局已开始！
 
 发起者：{user_link}
 手续费：{game.magnification} {sakura_b}
+{duration_text}
 随机方式：{random_method}
 开奖时间：{bet_info['end_time'].strftime('%H:%M:%S')}
 
@@ -240,9 +299,10 @@ class BettingSystem:
             'prize_pool': prize_pool
         }
     
-    async def _auto_draw(self, chat_id: int, bet_id: str):
+    async def _auto_draw(self, chat_id: int, bet_id: str, duration_minutes: int = 5):
         """自动开奖"""
-        await asyncio.sleep(300)  # 等待5分钟
+        wait_seconds = duration_minutes * 60
+        await asyncio.sleep(wait_seconds)
         
         if chat_id not in self.active_bets:
             return
@@ -368,6 +428,7 @@ class BettingSystem:
         
         return result_message
 
+
 # 创建赌局系统实例
 betting_system = BettingSystem()
 
@@ -398,6 +459,25 @@ async def handle_startbet_command(client, message):
             asyncio.create_task(deleteMessage(error_message, 60))
             return
 
+    # 解析游戏时长参数
+    duration, parse_error = parse_duration_parameter(message_text)
+    if parse_error:
+        error_message = await message.reply_text(parse_error)
+        asyncio.create_task(deleteMessage(error_message, 60))
+        return
+    
+    # 如果提供了时长参数，进行验证
+    if duration is not None:
+        is_valid, validation_error = validate_duration(duration)
+        if not is_valid:
+            error_message = await message.reply_text(validation_error)
+            asyncio.create_task(deleteMessage(error_message, 60))
+            return
+    
+    # 如果没有提供时长参数，使用默认值 5 分钟
+    if duration is None:
+        duration = 5
+
     # 检查用户金币是否足够支付手续费
     if user.iv < game.magnification:
         error_message = await message.reply_text(f"❌ 你的余额不够支付 {game.magnification} {sakura_b} 手续费哦～")
@@ -413,7 +493,7 @@ async def handle_startbet_command(client, message):
         text=f"✅ 您已成功创建赌局\n💰 扣除手续费：{game.magnification} {sakura_b}\n💳 当前余额：{new_balance} {sakura_b}"
     )
 
-    result = await betting_system.start_bet(chat_id, user_id, message_text)
+    result = await betting_system.start_bet(chat_id, user_id, message_text, duration)
     bet_start_message = await message.reply_text(result)
     
     betting_system.set_start_message_id(chat_id, bet_start_message.id)

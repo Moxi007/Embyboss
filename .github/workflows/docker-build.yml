@@ -1,0 +1,85 @@
+name: Go-Strm Docker Build
+
+on:
+  # 自动触发：当推送 tag 时 (如 v1.0.0)
+  push:
+    tags:
+      - "v*"
+  
+  # 手动触发：通过 "Use workflow from" 选择构建分支
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: '镜像标签 (如: latest, v1.0.0, beta)'
+        required: true
+        default: 'beta'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    name: Build and Push Docker Image
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 逻辑判断：手动触发使用自定义标签，Tag 触发使用 Tag 名
+      - name: Determine Tag
+        id: config
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # 手动触发：使用用户输入的镜像标签
+            echo "tag_name=${{ inputs.tags }}" >> $GITHUB_OUTPUT
+          else
+            # Tag 触发：使用 Tag 名作为镜像标签（去掉 v 前缀）
+            TAG_NAME=${GITHUB_REF_NAME#v}
+            echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          fi
+          # 设置构建时间和 Git 提交
+          echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "git_commit=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ secrets.DOCKER_USERNAME }}/embyboss
+          tags: |
+            # 使用自定义逻辑生成的 tag
+            type=raw,value=${{ steps.config.outputs.tag_name }}
+            # 仅在自动 Tag 推送时额外打 latest 标签
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+
+      - name: Set Up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set Up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: |
+            linux/amd64
+          #  linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.config.outputs.tag_name }}
+            BUILD_TIME=${{ steps.config.outputs.build_time }}
+            GIT_COMMIT=${{ steps.config.outputs.git_commit }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image Digest
+        run: echo ${{ steps.meta.outputs.digest }}

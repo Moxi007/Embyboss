@@ -13,3 +13,7 @@ __pycache__
 log
 *.sql
 bot-env
+
+# Kiro 配置和测试缓存
+.kiro/
+.hypothesis/
