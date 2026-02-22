@@ -1,8 +1,8 @@
 """
-十点半扑克游戏模块
+21点扑克游戏模块
 
 这是一个基于 Telegram Bot 的扑克牌游戏，玩家通过命令发起游戏并下注，
-目标是让手牌点数尽可能接近 10.5 但不超过。
+目标是让手牌点数尽可能接近 21 但不超过。
 """
 
 import asyncio
@@ -17,11 +17,11 @@ from bot.func_helper.msg_utils import deleteMessage
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 
 # 存储活跃游戏的字典 (user_id -> game_state)
-active_g105_games: Dict[int, Dict] = {}
+active_g21_games: Dict[int, Dict] = {}
 
 
-class G105Logic:
-    """十点半游戏核心逻辑类"""
+class G21Logic:
+    """21点游戏核心逻辑类"""
     
     # 扑克牌花色
     SUITS = ['♠', '♥', '♣', '♦']
@@ -41,7 +41,7 @@ class G105Logic:
             洗好的牌堆列表
         """
         # 创建完整牌组
-        deck = [f"{suit}{rank}" for suit in G105Logic.SUITS for rank in G105Logic.RANKS]
+        deck = [f"{suit}{rank}" for suit in G21Logic.SUITS for rank in G21Logic.RANKS]
         
         # Fisher-Yates 洗牌算法
         for i in range(len(deck) - 1, 0, -1):
@@ -67,40 +67,49 @@ class G105Logic:
 
     
     @staticmethod
-    def calculate_points(cards: List[str]) -> float:
+    def calculate_points(cards: List[str]) -> int:
         """
-        计算手牌总点数
+        计算手牌总点数（21点规则）
         
         规则:
-            - A: 1点
-            - 2-9: 牌面点数
-            - 10/J/Q/K: 0.5点
+            - A: 1或11（灵活计算，优先计为11，如果爆牌则计为1）
+            - 2-10: 牌面点数
+            - J/Q/K: 10点
         
         参数:
             cards: 手牌列表
         
         返回:
-            总点数（支持小数）
+            总点数（整数）
         """
-        total = 0.0
+        total = 0
+        ace_count = 0
+        
         for card in cards:
             # 去掉花色符号，获取点数
             rank = card[1:]
             if rank == 'A':
-                total += 1.0
-            elif rank in ['10', 'J', 'Q', 'K']:
-                total += 0.5
+                ace_count += 1
+                total += 11  # 先按11计算
+            elif rank in ['J', 'Q', 'K']:
+                total += 10
             else:
-                total += float(rank)
+                total += int(rank)
+        
+        # 如果有A且总点数超过21，将A从11改为1
+        while total > 21 and ace_count > 0:
+            total -= 10  # 将一个A从11改为1（差值为10）
+            ace_count -= 1
+        
         return total
 
     
     @staticmethod
     def dealer_auto_draw(dealer_cards: List[str], deck: List[str]) -> List[str]:
         """
-        庄家自动抽牌逻辑
+        庄家自动抽牌逻辑（21点规则）
         
-        规则: 点数 < 7 时继续抽牌
+        规则: 点数 < 17 时继续抽牌
         
         参数:
             dealer_cards: 庄家当前手牌
@@ -110,15 +119,15 @@ class G105Logic:
             更新后的庄家手牌
         """
         while True:
-            points = G105Logic.calculate_points(dealer_cards)
+            points = G21Logic.calculate_points(dealer_cards)
             
-            # 停止条件：点数达到7或以上、爆牌、或达到5张牌
-            if points >= 7 or points > 10.5 or len(dealer_cards) >= 5:
+            # 停止条件：点数达到17或以上、爆牌（>21）、或达到5张牌
+            if points >= 17 or points > 21 or len(dealer_cards) >= 5:
                 break
             
             # 抽牌
             if deck:
-                card = G105Logic.deal_card(deck)
+                card = G21Logic.deal_card(deck)
                 if card:
                     dealer_cards.append(card)
                 else:
@@ -130,10 +139,10 @@ class G105Logic:
 
     
     @staticmethod
-    def judge_winner(player_points: float, dealer_points: float,
+    def judge_winner(player_points: int, dealer_points: int,
                      player_cards: List[str], dealer_cards: List[str]) -> dict:
         """
-        判定胜负
+        判定胜负（21点规则）
         
         参数:
             player_points: 玩家点数
@@ -147,8 +156,8 @@ class G105Logic:
                 'winner': 'player' | 'dealer' | 'tie',
                 'reason': str,
                 'multiplier': float,
-                'player_points': float,
-                'dealer_points': float,
+                'player_points': int,
+                'dealer_points': int,
                 'is_five_dragon': bool
             }
         """
@@ -160,29 +169,29 @@ class G105Logic:
         }
         
         # 1. 玩家爆牌
-        if player_points > 10.5:
+        if player_points > 21:
             result['winner'] = 'dealer'
             result['reason'] = '玩家爆牌'
             return result
         
         # 2. 玩家五小龙
-        if len(player_cards) == 5 and player_points <= 10.5:
+        if len(player_cards) == 5 and player_points <= 21:
             result['is_five_dragon'] = True
-            if len(dealer_cards) != 5 or dealer_points > 10.5:
+            if len(dealer_cards) != 5 or dealer_points > 21:
                 result['winner'] = 'player'
                 result['reason'] = '玩家五小龙'
                 result['multiplier'] = 2.0
                 return result
         
         # 3. 庄家爆牌
-        if dealer_points > 10.5:
+        if dealer_points > 21:
             result['winner'] = 'player'
             result['reason'] = '庄家爆牌'
             result['multiplier'] = 1.0
             return result
         
         # 4. 庄家五小龙
-        if len(dealer_cards) == 5 and dealer_points <= 10.5:
+        if len(dealer_cards) == 5 and dealer_points <= 21:
             result['winner'] = 'dealer'
             result['reason'] = '庄家五小龙'
             return result
@@ -255,8 +264,8 @@ def generate_game_message(game: dict, show_dealer_cards: bool = False) -> str:
     player_cards = game['player_cards']
     dealer_cards = game['dealer_cards']
     
-    player_points = G105Logic.calculate_points(player_cards)
-    dealer_points = G105Logic.calculate_points(dealer_cards)
+    player_points = G21Logic.calculate_points(player_cards)
+    dealer_points = G21Logic.calculate_points(dealer_cards)
     
     # 玩家手牌
     player_hand_str = format_hand(player_cards)
@@ -264,7 +273,7 @@ def generate_game_message(game: dict, show_dealer_cards: bool = False) -> str:
     # 庄家手牌（可能隐藏第二张）
     dealer_hand_str = format_hand(dealer_cards, hide_second=not show_dealer_cards)
     
-    message = f"""🎴 十点半游戏
+    message = f"""🎴 21点游戏
 
 👤 玩家手牌：{player_hand_str}
 📊 玩家点数：{player_points}
@@ -292,8 +301,8 @@ def create_game_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🎴 要牌", callback_data=f"g105_hit_{user_id}"),
-            InlineKeyboardButton("🛑 停牌", callback_data=f"g105_stand_{user_id}")
+            InlineKeyboardButton("🎴 要牌", callback_data=f"g21_hit_{user_id}"),
+            InlineKeyboardButton("🛑 停牌", callback_data=f"g21_stand_{user_id}")
         ]
     ])
 
@@ -314,7 +323,7 @@ def generate_result_message(game: dict, result: dict, user_balance: int) -> str:
     player_hand_str = format_hand(game['player_cards'])
     dealer_hand_str = format_hand(game['dealer_cards'])
     
-    message = f"""🎴 十点半游戏 - 结果
+    message = f"""🎴 21点游戏 - 结果
 
 👤 玩家手牌：{player_hand_str}
 📊 玩家点数：{result['player_points']}
@@ -345,9 +354,9 @@ def generate_result_message(game: dict, result: dict, user_balance: int) -> str:
 
 
 
-def parse_g105_command(command_text: str) -> dict:
+def parse_g21_command(command_text: str) -> dict:
     """
-    解析 /g105 命令
+    解析 /g21 命令
     
     参数:
         command_text: 命令文本
@@ -360,7 +369,7 @@ def parse_g105_command(command_text: str) -> dict:
         if len(parts) < 2:
             return {
                 'success': False,
-                'error': '❌ 格式错误！请使用：/g105 [金额]\n例如：/g105 100'
+                'error': '❌ 格式错误！请使用：/g21 [金额]\n例如：/g21 100'
             }
         
         amount_str = parts[1]
@@ -383,8 +392,47 @@ def parse_g105_command(command_text: str) -> dict:
         }
 
 
+def validate_user_permission(user) -> dict:
+    """
+    验证用户权限
+    
+    检查用户是否有权限参与游戏：
+    1. 检查用户是否已初始化
+    2. 检查 game.g21_no_emby 配置
+    3. 验证用户是否有 embyid（如需要）
+    
+    参数:
+        user: 用户对象（Emby 模型实例），如果为 None 表示用户未初始化
+    
+    返回:
+        {'valid': bool, 'error': str}
+    
+    验证需求：1.3, 1.4, 1.5, 1.6, 12.1
+    """
+    # 检查用户是否已初始化
+    if not user:
+        return {
+            'valid': False,
+            'error': '❌ 您还未在系统中初始化，请先私信我激活'
+        }
+    
+    # 检查 game.g21_no_emby 配置
+    # 如果 g21_no_emby 为 false，则需要验证用户是否有 embyid
+    if not game.g21_no_emby:
+        if not user.embyid:
+            return {
+                'valid': False,
+                'error': '❌ 您还未注册Emby账户'
+            }
+    
+    # 所有验证通过
+    return {
+        'valid': True
+    }
 
-async def cleanup_g105_game_state(user_id: int, refund: bool = False):
+
+
+async def cleanup_g21_game_state(user_id: int, refund: bool = False):
     """
     清理游戏状态，可选退款
     
@@ -393,8 +441,8 @@ async def cleanup_g105_game_state(user_id: int, refund: bool = False):
         refund: 是否退还下注金额
     """
     try:
-        if user_id in active_g105_games:
-            game_state = active_g105_games[user_id]
+        if user_id in active_g21_games:
+            game_state = active_g21_games[user_id]
             
             # 取消超时计时器
             if 'timeout_task' in game_state and game_state['timeout_task']:
@@ -411,14 +459,14 @@ async def cleanup_g105_game_state(user_id: int, refund: bool = False):
                     sql_update_emby(Emby.tg == user_id, iv=new_balance)
             
             # 删除状态
-            del active_g105_games[user_id]
+            del active_g21_games[user_id]
             
             LOGGER.info(f"清理游戏状态: user_id={user_id}, refund={refund}")
     except Exception as e:
         LOGGER.error(f"清理游戏状态失败: {e}")
 
 
-def cancel_g105_timeout_timer(user_id: int):
+def cancel_g21_timeout_timer(user_id: int):
     """
     取消超时计时器
     
@@ -426,8 +474,8 @@ def cancel_g105_timeout_timer(user_id: int):
         user_id: 用户ID
     """
     try:
-        if user_id in active_g105_games:
-            game_state = active_g105_games[user_id]
+        if user_id in active_g21_games:
+            game_state = active_g21_games[user_id]
             if 'timeout_task' in game_state and game_state['timeout_task']:
                 game_state['timeout_task'].cancel()
                 LOGGER.debug(f"取消超时计时器: user_id={user_id}")
@@ -435,7 +483,7 @@ def cancel_g105_timeout_timer(user_id: int):
         LOGGER.error(f"取消超时计时器失败: {e}")
 
 
-def reset_g105_timeout_timer(user_id: int, timeout_seconds: int = 60):
+def reset_g21_timeout_timer(user_id: int, timeout_seconds: int = 60):
     """
     重置超时计时器（取消旧的并启动新的）
     
@@ -446,20 +494,20 @@ def reset_g105_timeout_timer(user_id: int, timeout_seconds: int = 60):
         timeout_seconds: 超时秒数（默认60秒）
     """
     try:
-        if user_id in active_g105_games:
+        if user_id in active_g21_games:
             # 取消旧的计时器
-            cancel_g105_timeout_timer(user_id)
+            cancel_g21_timeout_timer(user_id)
             
             # 启动新的计时器并保存任务引用
-            task = asyncio.create_task(start_g105_timeout_timer(user_id, timeout_seconds))
-            active_g105_games[user_id]['timeout_task'] = task
+            task = asyncio.create_task(start_g21_timeout_timer(user_id, timeout_seconds))
+            active_g21_games[user_id]['timeout_task'] = task
             
             LOGGER.debug(f"重置超时计时器: user_id={user_id}")
     except Exception as e:
         LOGGER.error(f"重置超时计时器失败: {e}")
 
 
-async def handle_g105_timeout(user_id: int, game: dict):
+async def handle_g21_timeout(user_id: int, game: dict):
     """
     处理超时
     
@@ -495,13 +543,13 @@ async def handle_g105_timeout(user_id: int, game: dict):
             pass
         
         # 清理游戏状态（不退款）
-        await cleanup_g105_game_state(user_id, refund=False)
+        await cleanup_g21_game_state(user_id, refund=False)
         
     except Exception as e:
         LOGGER.error(f"处理超时失败: {e}")
 
 
-async def start_g105_timeout_timer(user_id: int, timeout_seconds: int = 60):
+async def start_g21_timeout_timer(user_id: int, timeout_seconds: int = 60):
     """
     启动超时计时器
     
@@ -512,12 +560,12 @@ async def start_g105_timeout_timer(user_id: int, timeout_seconds: int = 60):
     await asyncio.sleep(timeout_seconds)
     
     # 检查游戏是否还在进行
-    if user_id in active_g105_games:
-        game = active_g105_games[user_id]
-        await handle_g105_timeout(user_id, game)
+    if user_id in active_g21_games:
+        game = active_g21_games[user_id]
+        await handle_g21_timeout(user_id, game)
 
 
-async def settle_g105_game(user_id: int, game: dict, result: dict):
+async def settle_g21_game(user_id: int, game: dict, result: dict):
     """
     结算游戏
     
@@ -576,20 +624,20 @@ async def settle_g105_game(user_id: int, game: dict, result: dict):
             pass
         
         # 清理游戏状态
-        await cleanup_g105_game_state(user_id, refund=False)
+        await cleanup_g21_game_state(user_id, refund=False)
         
     except Exception as e:
         LOGGER.error(f"结算游戏失败: {e}")
         # 发生错误时尝试退款
-        await cleanup_g105_game_state(user_id, refund=True)
+        await cleanup_g21_game_state(user_id, refund=True)
 
 
 
-@bot.on_message(filters.command('g105', prefixes=prefixes) & filters.group)
-async def handle_g105_command(client, message):
-    """处理 /g105 命令"""
+@bot.on_message(filters.command('g21', prefixes=prefixes) & filters.group)
+async def handle_g21_command(client, message):
+    """处理 /g21 命令"""
     # 检查游戏开关
-    if not game.g105_open:
+    if not game.g21_open:
         try:
             await message.delete()
         except:
@@ -605,7 +653,7 @@ async def handle_g105_command(client, message):
     
     try:
         # 1. 解析命令
-        parse_result = parse_g105_command(message_text)
+        parse_result = parse_g21_command(message_text)
         if not parse_result['success']:
             error_msg = await message.reply_text(parse_result['error'])
             asyncio.create_task(deleteMessage(error_msg, 60))
@@ -615,20 +663,16 @@ async def handle_g105_command(client, message):
         
         # 2. 查询用户信息
         user = sql_get_emby(user_id)
-        if not user:
-            error_msg = await message.reply_text("❌ 您还未在系统中初始化，请先私信我激活")
+        
+        # 3. 验证用户权限
+        permission_result = validate_user_permission(user)
+        if not permission_result['valid']:
+            error_msg = await message.reply_text(permission_result['error'])
             asyncio.create_task(deleteMessage(error_msg, 60))
             return
         
-        # 3. 检查 embyid 要求
-        if not game.g105_no_emby:
-            if not user.embyid:
-                error_msg = await message.reply_text("❌ 您还未注册Emby账户")
-                asyncio.create_task(deleteMessage(error_msg, 60))
-                return
-        
         # 4. 检查是否已有进行中的游戏
-        if user_id in active_g105_games:
+        if user_id in active_g21_games:
             error_msg = await message.reply_text("❌ 您已有进行中的游戏，请先完成当前游戏")
             asyncio.create_task(deleteMessage(error_msg, 60))
             return
@@ -653,9 +697,9 @@ async def handle_g105_command(client, message):
             pass
         
         # 7. 创建牌堆并发牌
-        deck = G105Logic.create_deck()
-        player_cards = [G105Logic.deal_card(deck), G105Logic.deal_card(deck)]
-        dealer_cards = [G105Logic.deal_card(deck), G105Logic.deal_card(deck)]
+        deck = G21Logic.create_deck()
+        player_cards = [G21Logic.deal_card(deck), G21Logic.deal_card(deck)]
+        dealer_cards = [G21Logic.deal_card(deck), G21Logic.deal_card(deck)]
         
         # 8. 创建游戏状态
         game_state = {
@@ -678,11 +722,11 @@ async def handle_g105_command(client, message):
         game_state['message_id'] = game_msg.id
         
         # 10. 启动超时计时器并保存任务引用
-        timeout_task = asyncio.create_task(start_g105_timeout_timer(user_id, 60))
+        timeout_task = asyncio.create_task(start_g21_timeout_timer(user_id, 60))
         game_state['timeout_task'] = timeout_task
         
         # 存储游戏状态
-        active_g105_games[user_id] = game_state
+        active_g21_games[user_id] = game_state
         
         
         # 记录日志
@@ -692,7 +736,7 @@ async def handle_g105_command(client, message):
         )
         
     except Exception as e:
-        LOGGER.error(f"处理 /g105 命令失败: {e}")
+        LOGGER.error(f"处理 /g21 命令失败: {e}")
         try:
             error_msg = await message.reply_text("❌ 系统错误，请稍后重试")
             asyncio.create_task(deleteMessage(error_msg, 60))
@@ -700,8 +744,8 @@ async def handle_g105_command(client, message):
             pass
 
 
-@bot.on_callback_query(filters.regex(r"^g105_(hit|stand)_"))
-async def handle_g105_callback(client, call):
+@bot.on_callback_query(filters.regex(r"^g21_(hit|stand)_"))
+async def handle_g21_callback(client, call):
     """处理游戏按钮回调"""
     try:
         # 解析回调数据
@@ -720,31 +764,27 @@ async def handle_g105_callback(client, call):
             return
         
         # 检查游戏是否存在
-        if target_user_id not in active_g105_games:
+        if target_user_id not in active_g21_games:
             await call.answer("❌ 游戏已结束", show_alert=True)
             return
         
-        game_state = active_g105_games[target_user_id]
+        game_state = active_g21_games[target_user_id]
         
-        # 检查用户权限
+        # 验证用户权限
         user = sql_get_emby(caller_user_id)
-        if not user:
-            await call.answer("❌ 您还未在系统中初始化", show_alert=True)
+        permission_result = validate_user_permission(user)
+        if not permission_result['valid']:
+            await call.answer(permission_result['error'], show_alert=True)
             return
-        
-        if not game.g105_no_emby:
-            if not user.embyid:
-                await call.answer("❌ 您还未注册Emby账户", show_alert=True)
-                return
         
         # 处理操作
         if action == 'hit':
             # 要牌
-            card = G105Logic.deal_card(game_state['deck'])
+            card = G21Logic.deal_card(game_state['deck'])
             if card:
                 game_state['player_cards'].append(card)
             
-            player_points = G105Logic.calculate_points(game_state['player_cards'])
+            player_points = G21Logic.calculate_points(game_state['player_cards'])
             
             # 记录日志
             LOGGER.info(
@@ -753,38 +793,38 @@ async def handle_g105_callback(client, call):
             )
             
             # 检查爆牌
-            if player_points > 10.5:
+            if player_points > 21:
                 # 爆牌，游戏结束
-                result = G105Logic.judge_winner(
+                result = G21Logic.judge_winner(
                     player_points,
-                    G105Logic.calculate_points(game_state['dealer_cards']),
+                    G21Logic.calculate_points(game_state['dealer_cards']),
                     game_state['player_cards'],
                     game_state['dealer_cards']
                 )
-                await settle_g105_game(target_user_id, game_state, result)
+                await settle_g21_game(target_user_id, game_state, result)
                 await call.answer("💥 爆牌了！", show_alert=False)
                 return
             
             # 检查五小龙
-            if len(game_state['player_cards']) == 5 and player_points <= 10.5:
+            if len(game_state['player_cards']) == 5 and player_points <= 21:
                 # 五小龙，触发庄家抽牌
-                game_state['dealer_cards'] = G105Logic.dealer_auto_draw(
+                game_state['dealer_cards'] = G21Logic.dealer_auto_draw(
                     game_state['dealer_cards'],
                     game_state['deck']
                 )
-                dealer_points = G105Logic.calculate_points(game_state['dealer_cards'])
+                dealer_points = G21Logic.calculate_points(game_state['dealer_cards'])
                 
-                result = G105Logic.judge_winner(
+                result = G21Logic.judge_winner(
                     player_points,
                     dealer_points,
                     game_state['player_cards'],
                     game_state['dealer_cards']
                 )
-                await settle_g105_game(target_user_id, game_state, result)
+                await settle_g21_game(target_user_id, game_state, result)
                 await call.answer("🐉 五小龙！", show_alert=False)
                 return
             
-            reset_g105_timeout_timer(target_user_id, 60)
+            reset_g21_timeout_timer(target_user_id, 60)
             
             # 更新游戏界面
             game_text = generate_game_message(game_state, show_dealer_cards=False)
@@ -801,16 +841,16 @@ async def handle_g105_callback(client, call):
             LOGGER.info(f"玩家操作: user_id={target_user_id}, action=stand")
             
             # 庄家自动抽牌
-            game_state['dealer_cards'] = G105Logic.dealer_auto_draw(
+            game_state['dealer_cards'] = G21Logic.dealer_auto_draw(
                 game_state['dealer_cards'],
                 game_state['deck']
             )
             
             # 判定胜负
-            player_points = G105Logic.calculate_points(game_state['player_cards'])
-            dealer_points = G105Logic.calculate_points(game_state['dealer_cards'])
+            player_points = G21Logic.calculate_points(game_state['player_cards'])
+            dealer_points = G21Logic.calculate_points(game_state['dealer_cards'])
             
-            result = G105Logic.judge_winner(
+            result = G21Logic.judge_winner(
                 player_points,
                 dealer_points,
                 game_state['player_cards'],
@@ -818,7 +858,7 @@ async def handle_g105_callback(client, call):
             )
             
             # 结算
-            await settle_g105_game(target_user_id, game_state, result)
+            await settle_g21_game(target_user_id, game_state, result)
             await call.answer("🛑 已停牌", show_alert=False)
         
     except Exception as e:

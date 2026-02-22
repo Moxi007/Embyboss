@@ -602,18 +602,18 @@ async def set_game_bet_no_emby(_, call):
     save_config()
     await game_config_panel(_, call)
 
-@bot.on_callback_query(filters.regex('^set_game_105_open$') & admins_on_filter)
-async def set_game_105_open(_, call):
-    """设置十点半游戏开关"""
-    config.game.g105_open = not config.game.g105_open
-    await callAnswer(call, f"十点半功能已{'开启' if config.game.g105_open else '关闭'}", True)
+@bot.on_callback_query(filters.regex('^set_game_21_open$') & admins_on_filter)
+async def set_game_21_open(_, call):
+    """设置21点游戏开关"""
+    config.game.g21_open = not config.game.g21_open
+    await callAnswer(call, f"21点功能已{'开启' if config.game.g21_open else '关闭'}", True)
     save_config()
     await game_config_panel(_, call)
 
-@bot.on_callback_query(filters.regex('^set_game_105_no_emby$') & admins_on_filter)
-async def set_game_105_no_emby(_, call):
-    """设置十点半无Emby参与"""
-    config.game.g105_no_emby = not config.game.g105_no_emby
-    await callAnswer(call, f"十点半无Emby参与已{'开启' if config.game.g105_no_emby else '关闭'}", True)
+@bot.on_callback_query(filters.regex('^set_game_21_no_emby$') & admins_on_filter)
+async def set_game_21_no_emby(_, call):
+    """设置21点无Emby参与"""
+    config.game.g21_no_emby = not config.game.g21_no_emby
+    await callAnswer(call, f"21点无Emby参与已{'开启' if config.game.g21_no_emby else '关闭'}", True)
     save_config()
     await game_config_panel(_, call)

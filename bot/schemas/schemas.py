@@ -170,9 +170,12 @@ class Game(BaseModel):
     bet_no_emby: bool = False
     rob_no_emby: bool = False
     magnification: int = 1
-    # 十点半游戏配置
-    g105_open: bool = True  # 十点半游戏开关
-    g105_no_emby: bool = False  # 十点半允许无Emby账号参与
+    # 21点游戏配置
+    g21_open: bool = True  # 21点游戏开关
+    g21_no_emby: bool = False  # 21点允许无Emby账号参与
+    g21_min_bet: int = 1  # 21点最小下注金额
+    g21_max_bet: int = 10000  # 21点最大下注金额
+    g21_timeout: int = 60  # 21点超时时间（秒）
 
 class Config(BaseModel):
     bot_name: str
