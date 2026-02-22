@@ -275,7 +275,7 @@ def generate_game_message(game: dict, show_dealer_cards: bool = False) -> str:
     if show_dealer_cards:
         message += f"📊 庄家点数：{dealer_points}\n"
     
-    message += f"\n💰 下注金额：{game['bet_amount']} {sakura_b}"
+    message += f"\n💰 下注金额：{game_state['bet_amount']} {sakura_b}"
     
     return message
 
@@ -326,7 +326,7 @@ def generate_result_message(game: dict, result: dict, user_balance: int) -> str:
     
     # 胜负结果
     if result['winner'] == 'player':
-        reward = int(game['bet_amount'] * result['multiplier'])
+        reward = int(game_state['bet_amount'] * result['multiplier'])
         message += f"🎉 恭喜获胜！\n"
         message += f"📝 原因：{result['reason']}\n"
         message += f"💰 获得：{reward} {sakura_b}\n"
@@ -394,13 +394,20 @@ async def cleanup_g105_game_state(user_id: int, refund: bool = False):
     """
     try:
         if user_id in active_g105_games:
-            game = active_g105_games[user_id]
+            game_state = active_g105_games[user_id]
+            
+            # 取消超时计时器
+            if 'timeout_task' in game_state and game_state['timeout_task']:
+                try:
+                    game_state['timeout_task'].cancel()
+                except:
+                    pass
             
             # 退款处理
             if refund:
                 user = sql_get_emby(user_id)
                 if user:
-                    new_balance = user.iv + game['bet_amount']
+                    new_balance = user.iv + game_state['bet_amount']
                     sql_update_emby(Emby.tg == user_id, iv=new_balance)
             
             # 删除状态
@@ -409,6 +416,47 @@ async def cleanup_g105_game_state(user_id: int, refund: bool = False):
             LOGGER.info(f"清理游戏状态: user_id={user_id}, refund={refund}")
     except Exception as e:
         LOGGER.error(f"清理游戏状态失败: {e}")
+
+
+def cancel_g105_timeout_timer(user_id: int):
+    """
+    取消超时计时器
+    
+    参数:
+        user_id: 用户ID
+    """
+    try:
+        if user_id in active_g105_games:
+            game_state = active_g105_games[user_id]
+            if 'timeout_task' in game_state and game_state['timeout_task']:
+                game_state['timeout_task'].cancel()
+                LOGGER.debug(f"取消超时计时器: user_id={user_id}")
+    except Exception as e:
+        LOGGER.error(f"取消超时计时器失败: {e}")
+
+
+def reset_g105_timeout_timer(user_id: int, timeout_seconds: int = 60):
+    """
+    重置超时计时器（取消旧的并启动新的）
+    
+    每次玩家操作后调用此函数，重新计时 60 秒
+    
+    参数:
+        user_id: 用户ID
+        timeout_seconds: 超时秒数（默认60秒）
+    """
+    try:
+        if user_id in active_g105_games:
+            # 取消旧的计时器
+            cancel_g105_timeout_timer(user_id)
+            
+            # 启动新的计时器并保存任务引用
+            task = asyncio.create_task(start_g105_timeout_timer(user_id, timeout_seconds))
+            active_g105_games[user_id]['timeout_task'] = task
+            
+            LOGGER.debug(f"重置超时计时器: user_id={user_id}")
+    except Exception as e:
+        LOGGER.error(f"重置超时计时器失败: {e}")
 
 
 async def handle_g105_timeout(user_id: int, game: dict):
@@ -632,8 +680,9 @@ async def handle_g105_command(client, message):
         # 存储游戏状态
         active_g105_games[user_id] = game_state
         
-        # 10. 启动超时计时器
-        asyncio.create_task(start_g105_timeout_timer(user_id, 60))
+        # 10. 启动超时计时器并保存任务引用
+        timeout_task = asyncio.create_task(start_g105_timeout_timer(user_id, 60))
+        game_state['timeout_task'] = timeout_task
         
         # 记录日志
         LOGGER.info(
@@ -733,6 +782,8 @@ async def handle_g105_callback(client, call):
                 await settle_g105_game(target_user_id, game_state, result)
                 await call.answer("🐉 五小龙！", show_alert=False)
                 return
+            
+            reset_g105_timeout_timer(target_user_id, 60)
             
             # 更新游戏界面
             game_text = generate_game_message(game_state, show_dealer_cards=False)
