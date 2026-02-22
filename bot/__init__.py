@@ -80,7 +80,7 @@ user_p = [
     BotCommand("red", "[用户/禁言] 发红包"),
     BotCommand("srank", "[用户/禁言] 查看计分"),
     BotCommand("rob", "[用户] 开始抢劫事件"),
-    BotCommand("game105", "[用户] 十点半游戏"),
+    BotCommand("g105", "[用户] 十点半游戏"),
     BotCommand("startbet", "[用户] 创建赌局"),
     BotCommand("bet", "[用户] 参与赌局")]
 
