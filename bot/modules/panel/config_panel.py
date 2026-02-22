@@ -605,15 +605,15 @@ async def set_game_bet_no_emby(_, call):
 @bot.on_callback_query(filters.regex('^set_game_105_open$') & admins_on_filter)
 async def set_game_105_open(_, call):
     """设置十点半游戏开关"""
-    config.game.game_105_open = not config.game.game_105_open
-    await callAnswer(call, f"十点半功能已{'开启' if config.game.game_105_open else '关闭'}", True)
+    config.game.g105_open = not config.game.g105_open
+    await callAnswer(call, f"十点半功能已{'开启' if config.game.g105_open else '关闭'}", True)
     save_config()
     await game_config_panel(_, call)
 
 @bot.on_callback_query(filters.regex('^set_game_105_no_emby$') & admins_on_filter)
 async def set_game_105_no_emby(_, call):
     """设置十点半无Emby参与"""
-    config.game.game_105_no_emby = not config.game.game_105_no_emby
-    await callAnswer(call, f"十点半无Emby参与已{'开启' if config.game.game_105_no_emby else '关闭'}", True)
+    config.game.g105_no_emby = not config.game.g105_no_emby
+    await callAnswer(call, f"十点半无Emby参与已{'开启' if config.game.g105_no_emby else '关闭'}", True)
     save_config()
     await game_config_panel(_, call)
