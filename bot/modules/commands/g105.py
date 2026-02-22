@@ -677,12 +677,13 @@ async def handle_g105_command(client, message):
         # 保存消息ID
         game_state['message_id'] = game_msg.id
         
-        # 存储游戏状态
-        active_g105_games[user_id] = game_state
-        
         # 10. 启动超时计时器并保存任务引用
         timeout_task = asyncio.create_task(start_g105_timeout_timer(user_id, 60))
         game_state['timeout_task'] = timeout_task
+        
+        # 存储游戏状态
+        active_g105_games[user_id] = game_state
+        
         
         # 记录日志
         LOGGER.info(
