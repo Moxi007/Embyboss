@@ -360,7 +360,7 @@ def parse_105_command(command_text: str) -> dict:
         if len(parts) < 2:
             return {
                 'success': False,
-                'error': '❌ 格式错误！请使用：/105 [金额]\n例如：/105 100'
+                'error': '❌ 格式错误！请使用：/game105 [金额]\n例如：/game105 100'
             }
         
         amount_str = parts[1]
@@ -537,9 +537,9 @@ async def settle_game(user_id: int, game: dict, result: dict):
 
 
 
-@bot.on_message(filters.command('105', prefixes=prefixes) & filters.group)
+@bot.on_message(filters.command('game105', prefixes=prefixes) & filters.group)
 async def handle_105_command(client, message):
-    """处理 /105 命令"""
+    """处理 /game105 命令"""
     # 检查游戏开关
     if not game.game_105_open:
         try:
