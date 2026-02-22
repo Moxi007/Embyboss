@@ -276,8 +276,22 @@ class MultiplayerG21Session:
     async def add_player(self, user_id: int, username: str, bet_amount: int) -> dict:
         if self.phase != GamePhase.LOBBY:
             return {"success": False, "message": "游戏已开始，无法加入"}
-        if self.is_player_in_game(user_id):
-            return {"success": False, "message": "您已在游戏中"}
+        
+        # 检查玩家是否已在游戏中
+        existing_player = self.get_player(user_id)
+        if existing_player:
+            # 玩家已在游戏中，追加筹码
+            old_bet = existing_player['bet_amount']
+            existing_player['bet_amount'] += bet_amount
+            return {
+                "success": True, 
+                "message": f"追加成功！原下注：{old_bet}，追加：{bet_amount}，当前总下注：{existing_player['bet_amount']}",
+                "is_add_on": True,
+                "old_bet": old_bet,
+                "new_bet": existing_player['bet_amount']
+            }
+        
+        # 新玩家加入
         if len(self.players) >= 20:
             return {"success": False, "message": "游戏人数已满 (20人)"}
         
@@ -287,7 +301,7 @@ class MultiplayerG21Session:
             "lock": asyncio.Lock()
         }
         self.players.append(player)
-        return {"success": True, "message": "加入成功"}
+        return {"success": True, "message": "加入成功", "is_add_on": False}
     
     async def remove_player(self, user_id: int) -> dict:
         player = self.get_player(user_id)
