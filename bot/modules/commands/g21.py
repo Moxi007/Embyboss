@@ -578,6 +578,20 @@ class ResolutionManager:
         results = []
         for player in self.session.players:
             results.append(await self.settle_single_player(player))
+        
+        # 按赚的金币数量从高到低排序
+        def sort_key(result):
+            if result['result'] == "WIN":
+                # 赢：返回赚到的金币（本金+赔付）
+                return result['bet_amount'] + result['payout']
+            elif result['result'] == "DRAW":
+                # 平局：不赚不亏
+                return 0
+            else:  # LOSE
+                # 输：返回负数（失去的本金）
+                return -result['bet_amount']
+        
+        results.sort(key=sort_key, reverse=True)
         return results
     
     async def send_settlement_message(self, client: Client, group_id: int, results: List[dict]):
