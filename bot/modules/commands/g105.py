@@ -674,7 +674,7 @@ async def handle_g105_callback(client, call):
             await call.answer("❌ 游戏已结束", show_alert=True)
             return
         
-        game = active_g105_games[target_user_id]
+        game_state = active_g105_games[target_user_id]
         
         # 检查用户权限
         user = sql_get_emby(caller_user_id)
@@ -690,16 +690,16 @@ async def handle_g105_callback(client, call):
         # 处理操作
         if action == 'hit':
             # 要牌
-            card = G105Logic.deal_card(game['deck'])
+            card = G105Logic.deal_card(game_state['deck'])
             if card:
-                game['player_cards'].append(card)
+                game_state['player_cards'].append(card)
             
-            player_points = G105Logic.calculate_points(game['player_cards'])
+            player_points = G105Logic.calculate_points(game_state['player_cards'])
             
             # 记录日志
             LOGGER.info(
                 f"玩家操作: user_id={target_user_id}, action=hit, "
-                f"cards={len(game['player_cards'])}, points={player_points}"
+                f"cards={len(game_state['player_cards'])}, points={player_points}"
             )
             
             # 检查爆牌
@@ -707,35 +707,35 @@ async def handle_g105_callback(client, call):
                 # 爆牌，游戏结束
                 result = G105Logic.judge_winner(
                     player_points,
-                    G105Logic.calculate_points(game['dealer_cards']),
-                    game['player_cards'],
-                    game['dealer_cards']
+                    G105Logic.calculate_points(game_state['dealer_cards']),
+                    game_state['player_cards'],
+                    game_state['dealer_cards']
                 )
-                await settle_g105_game(target_user_id, game, result)
+                await settle_g105_game(target_user_id, game_state, result)
                 await call.answer("💥 爆牌了！", show_alert=False)
                 return
             
             # 检查五小龙
-            if len(game['player_cards']) == 5 and player_points <= 10.5:
+            if len(game_state['player_cards']) == 5 and player_points <= 10.5:
                 # 五小龙，触发庄家抽牌
-                game['dealer_cards'] = G105Logic.dealer_auto_draw(
-                    game['dealer_cards'],
-                    game['deck']
+                game_state['dealer_cards'] = G105Logic.dealer_auto_draw(
+                    game_state['dealer_cards'],
+                    game_state['deck']
                 )
-                dealer_points = G105Logic.calculate_points(game['dealer_cards'])
+                dealer_points = G105Logic.calculate_points(game_state['dealer_cards'])
                 
                 result = G105Logic.judge_winner(
                     player_points,
                     dealer_points,
-                    game['player_cards'],
-                    game['dealer_cards']
+                    game_state['player_cards'],
+                    game_state['dealer_cards']
                 )
-                await settle_g105_game(target_user_id, game, result)
+                await settle_g105_game(target_user_id, game_state, result)
                 await call.answer("🐉 五小龙！", show_alert=False)
                 return
             
             # 更新游戏界面
-            game_text = generate_game_message(game, show_dealer_cards=False)
+            game_text = generate_game_message(game_state, show_dealer_cards=False)
             keyboard = create_game_keyboard(target_user_id)
             try:
                 await call.edit_message_text(game_text, reply_markup=keyboard)
@@ -749,24 +749,24 @@ async def handle_g105_callback(client, call):
             LOGGER.info(f"玩家操作: user_id={target_user_id}, action=stand")
             
             # 庄家自动抽牌
-            game['dealer_cards'] = G105Logic.dealer_auto_draw(
-                game['dealer_cards'],
-                game['deck']
+            game_state['dealer_cards'] = G105Logic.dealer_auto_draw(
+                game_state['dealer_cards'],
+                game_state['deck']
             )
             
             # 判定胜负
-            player_points = G105Logic.calculate_points(game['player_cards'])
-            dealer_points = G105Logic.calculate_points(game['dealer_cards'])
+            player_points = G105Logic.calculate_points(game_state['player_cards'])
+            dealer_points = G105Logic.calculate_points(game_state['dealer_cards'])
             
             result = G105Logic.judge_winner(
                 player_points,
                 dealer_points,
-                game['player_cards'],
-                game['dealer_cards']
+                game_state['player_cards'],
+                game_state['dealer_cards']
             )
             
             # 结算
-            await settle_g105_game(target_user_id, game, result)
+            await settle_g105_game(target_user_id, game_state, result)
             await call.answer("🛑 已停牌", show_alert=False)
         
     except Exception as e:
