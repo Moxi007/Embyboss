@@ -139,6 +139,11 @@ class CommandParser:
 
 class ScoreboardRenderer:
     @staticmethod
+    def format_user_link(user_id: int, username: str) -> str:
+        """格式化用户链接，使其可点击跳转到用户主页"""
+        return f"[{username}](tg://user?id={user_id})"
+    
+    @staticmethod
     def render_lobby(players: List[dict], countdown: int) -> str:
         lines = [
             "🎰 **多人21点游戏 - 筹备阶段**", "",
@@ -147,7 +152,8 @@ class ScoreboardRenderer:
             "📋 **玩家列表：**"
         ]
         for i, player in enumerate(players, 1):
-            lines.append(f"{i}. {player['username']} - 下注 **{player['bet_amount']}** {sakura_b}")
+            user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
+            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b}")
         
         lines.append("")
         lines.append("💡 发送 `/g21 [金额]` 加入游戏")
@@ -189,7 +195,8 @@ class ScoreboardRenderer:
                 PlayerState.BUST: "已爆牌", PlayerState.BLACKJACK: "Blackjack", PlayerState.FIVE_DRAGON: "五小龙"
             }.get(state, "未知")
             
-            lines.append(f"{i}. {state_icon} **{player['username']}** (下注 {player['bet_amount']} {sakura_b})")
+            user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
+            lines.append(f"{i}. {state_icon} {user_link} (下注 {player['bet_amount']} {sakura_b})")
             lines.append(f"   手牌：{player_hand} | 点数：**{points}** | {state_text}")
         
         return "\n".join(lines)
@@ -228,7 +235,8 @@ class ScoreboardRenderer:
                 result_text = "平局"
                 coin_change = "±0"
             
-            lines.append(f"{i}. {icon} **{username}** - {result_text} (点数：{player_points}) | {sakura_b}变化：**{coin_change}**")
+            user_link = ScoreboardRenderer.format_user_link(result['user_id'], username)
+            lines.append(f"{i}. {icon} {user_link} - {result_text} (点数：{player_points}) | {sakura_b}变化：**{coin_change}**")
         
         lines.append("")
         lines.append("💡 本消息将在 180 秒后自动删除")
