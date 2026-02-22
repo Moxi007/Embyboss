@@ -541,7 +541,7 @@ async def settle_game(user_id: int, game: dict, result: dict):
 async def handle_105_command(client, message):
     """处理 /105 命令"""
     # 检查游戏开关
-    if not game.bet_open:
+    if not game.game_105_open:
         try:
             await message.delete()
         except:
@@ -573,7 +573,7 @@ async def handle_105_command(client, message):
             return
         
         # 3. 检查 embyid 要求
-        if not getattr(game, '_105_no_emby', False):
+        if not game.game_105_no_emby:
             if not user.embyid:
                 error_msg = await message.reply_text("❌ 您还未注册Emby账户")
                 asyncio.create_task(deleteMessage(error_msg, 60))
@@ -682,7 +682,7 @@ async def handle_105_callback(client, call):
             await call.answer("❌ 您还未在系统中初始化", show_alert=True)
             return
         
-        if not getattr(game, '_105_no_emby', False):
+        if not game.game_105_no_emby:
             if not user.embyid:
                 await call.answer("❌ 您还未注册Emby账户", show_alert=True)
                 return

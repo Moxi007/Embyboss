@@ -171,7 +171,8 @@ class Game(BaseModel):
     rob_no_emby: bool = False
     magnification: int = 1
     # 十点半游戏配置
-    game_105_no_emby: bool = False  # 使用下划线前缀，因为不能以数字开头
+    game_105_open: bool = True  # 十点半游戏开关
+    game_105_no_emby: bool = False  # 十点半允许无Emby账号参与
 
 class Config(BaseModel):
     bot_name: str

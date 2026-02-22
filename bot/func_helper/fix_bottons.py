@@ -589,12 +589,16 @@ def game_config_ikb():
     """游戏设置面板按钮"""
     rob_status = '✅' if game.rob_open else '❎'
     bet_status = '✅' if game.bet_open else '❎'
+    game_105_status = '✅' if game.game_105_open else '❎'
     rob_no_emby = '✅' if game.rob_no_emby else '❎'
     bet_no_emby = '✅' if game.bet_no_emby else '❎'
+    game_105_no_emby = '✅' if game.game_105_no_emby else '❎'
     
     keyboard = ikb([
         [(f'{rob_status} 抢劫功能', 'set_game_rob_open'), (f'{bet_status} 赌局功能', 'set_game_bet_open')],
+        [(f'{game_105_status} 十点半功能', 'set_game_105_open')],
         [(f'{rob_no_emby} 抢劫无Emby', 'set_game_rob_no_emby'), (f'{bet_no_emby} 赌局无Emby', 'set_game_bet_no_emby')],
+        [(f'{game_105_no_emby} 十点半无Emby', 'set_game_105_no_emby')],
         [('🔙 返回', 'back_config')]
     ])
     return keyboard
