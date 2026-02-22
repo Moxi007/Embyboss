@@ -170,6 +170,8 @@ class Game(BaseModel):
     bet_no_emby: bool = False
     rob_no_emby: bool = False
     magnification: int = 1
+    # 十点半游戏配置
+    game_105_no_emby: bool = False  # 使用下划线前缀，因为不能以数字开头
 
 class Config(BaseModel):
     bot_name: str
