@@ -275,7 +275,7 @@ def generate_game_message(game: dict, show_dealer_cards: bool = False) -> str:
     if show_dealer_cards:
         message += f"📊 庄家点数：{dealer_points}\n"
     
-    message += f"\n💰 下注金额：{game_state['bet_amount']} {sakura_b}"
+    message += f"\n💰 下注金额：{game['bet_amount']} {sakura_b}"
     
     return message
 
@@ -326,7 +326,7 @@ def generate_result_message(game: dict, result: dict, user_balance: int) -> str:
     
     # 胜负结果
     if result['winner'] == 'player':
-        reward = int(game_state['bet_amount'] * result['multiplier'])
+        reward = int(game['bet_amount'] * result['multiplier'])
         message += f"🎉 恭喜获胜！\n"
         message += f"📝 原因：{result['reason']}\n"
         message += f"💰 获得：{reward} {sakura_b}\n"
