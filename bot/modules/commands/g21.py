@@ -823,6 +823,11 @@ async def handle_hit_callback(client: Client, call: CallbackQuery):
         session = active_g21_games[group_id]
         
         if session.phase != GamePhase.ACTION: return await call.answer("❌ 不在操作阶段", show_alert=True)
+        
+        # 检查是否是庄家
+        if session.dealer_user_id == user_id:
+            return await call.answer("🎩 您是本局庄家，无需操作。庄家将在结算阶段自动补牌。", show_alert=True)
+        
         if not session.is_player_in_game(user_id): return await call.answer("❌ 您不在游戏中", show_alert=False)
         
         action_controller = ActionPhaseController(session)
@@ -844,6 +849,11 @@ async def handle_stand_callback(client: Client, call: CallbackQuery):
         session = active_g21_games[group_id]
         
         if session.phase != GamePhase.ACTION: return await call.answer("❌ 不在操作阶段", show_alert=True)
+        
+        # 检查是否是庄家
+        if session.dealer_user_id == user_id:
+            return await call.answer("🎩 您是本局庄家，无需操作。庄家将在结算阶段自动补牌。", show_alert=True)
+        
         if not session.is_player_in_game(user_id): return await call.answer("❌ 您不在游戏中", show_alert=False)
         
         action_controller = ActionPhaseController(session)
