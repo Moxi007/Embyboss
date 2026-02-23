@@ -144,10 +144,11 @@ class ScoreboardRenderer:
         return f"[{username}](tg://user?id={user_id})"
     
     @staticmethod
-    def render_lobby(dealer_name: str, players: List[dict], countdown: int) -> str:
+    def render_lobby(dealer_user_id: int, dealer_name: str, players: List[dict], countdown: int) -> str:
+        dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
         lines = [
             "🎰 **多人21点游戏 - 筹备阶段**", "",
-            f"🎩 **本局庄家：** {dealer_name}",
+            f"🎩 **本局庄家：** {dealer_link}",
             f"⏱ 倒计时：**{countdown}** 秒",
             f"👥 当前玩家数：**{len(players)}**/20", "",
             "📋 **玩家列表：**"
@@ -414,7 +415,7 @@ class LobbyManager:
         self.session = session
     
     async def create_lobby_panel(self, client: Client, group_id: int) -> int:
-        message_text = ScoreboardRenderer.render_lobby(self.session.dealer_name, self.session.players, self.session.lobby_remaining)
+        message_text = ScoreboardRenderer.render_lobby(self.session.dealer_user_id, self.session.dealer_name, self.session.players, self.session.lobby_remaining)
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚪 下车退出 / 庄家解散", callback_data=f"mpg21_quit_{group_id}")]])
         message = await client.send_message(chat_id=group_id, text=message_text, reply_markup=keyboard)
         self.session.lobby_message_id = message.id
@@ -422,7 +423,7 @@ class LobbyManager:
     
     async def update_lobby_panel(self, client: Client):
         if not self.session.lobby_message_id: return
-        message_text = ScoreboardRenderer.render_lobby(self.session.dealer_name, self.session.players, self.session.lobby_remaining)
+        message_text = ScoreboardRenderer.render_lobby(self.session.dealer_user_id, self.session.dealer_name, self.session.players, self.session.lobby_remaining)
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚪 下车退出 / 庄家解散", callback_data=f"mpg21_quit_{self.session.group_id}")]])
         
         try:
