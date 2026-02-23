@@ -207,15 +207,18 @@ class ScoreboardRenderer:
         return "\n".join(lines)
     
     @staticmethod
-    def render_settlement(dealer_name: str, dealer_net_profit: int, results: List[dict], dealer_cards: List[str]) -> str:
+    def render_settlement(dealer_user_id: int, dealer_name: str, dealer_net_profit: int, results: List[dict], dealer_cards: List[str]) -> str:
         dealer_hand = format_hand(dealer_cards)
         dealer_points = G21Logic.calculate_points(dealer_cards)
         
         profit_str = f"+{dealer_net_profit}" if dealer_net_profit > 0 else str(dealer_net_profit)
         
+        # 生成庄家的可点击链接
+        dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
+        
         lines = [
             "🎰 **多人21点游戏 - 结算**", "",
-            f"🎩 **庄家 ({dealer_name}) 最终手牌：**",
+            f"🎩 **庄家 ({dealer_link}) 最终手牌：**",
             f"{dealer_hand} (点数：{dealer_points})", 
             f"💰 **庄家本局净收益：** **{profit_str}** {sakura_b}", "",
             "📊 **玩家结算：**"
@@ -632,13 +635,17 @@ class ResolutionManager:
         return results
     
     async def send_settlement_message(self, client: Client, group_id: int, results: List[dict]):
-        message_text = ScoreboardRenderer.render_settlement(
-            self.session.dealer_name, self.session.dealer_net_profit, results, self.session.dealer_cards
-        )
-        try:
-            message = await client.send_message(chat_id=group_id, text=message_text)
-            asyncio.create_task(delete_message_after_delay(client, group_id, message.id, 180))
-        except: pass
+            message_text = ScoreboardRenderer.render_settlement(
+                self.session.dealer_user_id,  # 添加庄家用户ID参数
+                self.session.dealer_name, 
+                self.session.dealer_net_profit, 
+                results, 
+                self.session.dealer_cards
+            )
+            try:
+                message = await client.send_message(chat_id=group_id, text=message_text)
+                asyncio.create_task(delete_message_after_delay(client, group_id, message.id, 180))
+            except: pass
 
 
 # ==================== 指令与回调处理器 ====================
