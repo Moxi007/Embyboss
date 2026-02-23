@@ -99,7 +99,7 @@ def format_hand(cards: List[str], hide_second: bool = False) -> str:
 
 # ==================== 全局状态与常量 ====================
 
-active_multiplayer_g21_games: Dict[int, 'MultiplayerG21Session'] = {}
+active_g21_games: Dict[int, 'G21Session'] = {}
 _monitor_task_started = False
 
 class GamePhase:
@@ -248,7 +248,7 @@ class ScoreboardRenderer:
 
 # ==================== 游戏会话管理类 ====================
 
-class MultiplayerG21Session:
+class G21Session:
     def __init__(self, group_id: int, dealer_user_id: int, dealer_name: str):
         self.group_id = group_id
         self.dealer_user_id = dealer_user_id
@@ -354,8 +354,8 @@ class MultiplayerG21Session:
             if self.scoreboard_message_id: await client.delete_messages(self.group_id, self.scoreboard_message_id)
         except: pass
         
-        if self.group_id in active_multiplayer_g21_games:
-            del active_multiplayer_g21_games[self.group_id]
+        if self.group_id in active_g21_games:
+            del active_g21_games[self.group_id]
     
     async def start_action_phase(self, client: Client):
         if self.countdown_task and not self.countdown_task.done(): self.countdown_task.cancel()
@@ -410,7 +410,7 @@ class MultiplayerG21Session:
 # ==================== 管理器类群 ====================
 
 class LobbyManager:
-    def __init__(self, session: MultiplayerG21Session):
+    def __init__(self, session: G21Session):
         self.session = session
     
     async def create_lobby_panel(self, client: Client, group_id: int) -> int:
@@ -455,7 +455,7 @@ class LobbyManager:
 
 
 class ActionPhaseController:
-    def __init__(self, session: MultiplayerG21Session):
+    def __init__(self, session: G21Session):
         self.session = session
     
     async def deal_initial_cards(self):
@@ -548,7 +548,7 @@ class ActionPhaseController:
 
 
 class ResolutionManager:
-    def __init__(self, session: MultiplayerG21Session):
+    def __init__(self, session: G21Session):
         self.session = session
     
     async def dealer_draw_cards(self):
@@ -671,12 +671,12 @@ async def handle_startg21_command(client: Client, message: Message):
             asyncio.create_task(monitor_session_timeout())
             _monitor_task_started = True
 
-        if group_id in active_multiplayer_g21_games:
+        if group_id in active_g21_games:
             x = await message.reply_text("❌ 当前群组已有进行中的牌局，请先完成！")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
             
-        session = MultiplayerG21Session(group_id, user_id, username)
-        active_multiplayer_g21_games[group_id] = session
+        session = G21Session(group_id, user_id, username)
+        active_g21_games[group_id] = session
         
         lobby_manager = LobbyManager(session)
         await lobby_manager.create_lobby_panel(client, group_id)
@@ -690,7 +690,7 @@ async def handle_startg21_command(client: Client, message: Message):
 
 
 @bot.on_message(filters.command('g21', prefixes=prefixes) & filters.group)
-async def handle_multiplayer_g21_command(client: Client, message: Message):
+async def handle_g21_command(client: Client, message: Message):
     if not game.g21_open: return
     try: await message.delete()
     except: pass
@@ -701,11 +701,11 @@ async def handle_multiplayer_g21_command(client: Client, message: Message):
     command_text = message.text or ""
     
     try:
-        if group_id not in active_multiplayer_g21_games:
+        if group_id not in active_g21_games:
             x = await message.reply_text("❌ 当前没有筹备中的牌局，请发送 /startg21 发起游戏")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
             
-        session = active_multiplayer_g21_games[group_id]
+        session = active_g21_games[group_id]
         
         if session.dealer_user_id == user_id:
             x = await message.reply_text("❌ 您是本局庄家，无法作为玩家下注！")
@@ -763,9 +763,9 @@ async def handle_lobby_quit_callback(client: Client, call: CallbackQuery):
         group_id = int(call.data.split('_')[2])
         user_id = call.from_user.id
         
-        if group_id not in active_multiplayer_g21_games:
+        if group_id not in active_g21_games:
             return await call.answer("❌ 游戏不存在", show_alert=True)
-        session = active_multiplayer_g21_games[group_id]
+        session = active_g21_games[group_id]
         
         if session.phase != GamePhase.LOBBY:
             return await call.answer("❌ 游戏已开始，无法退出", show_alert=True)
@@ -819,8 +819,8 @@ async def handle_hit_callback(client: Client, call: CallbackQuery):
         group_id = int(call.data.split('_')[2])
         user_id = call.from_user.id
         
-        if group_id not in active_multiplayer_g21_games: return await call.answer("❌ 游戏不存在", show_alert=True)
-        session = active_multiplayer_g21_games[group_id]
+        if group_id not in active_g21_games: return await call.answer("❌ 游戏不存在", show_alert=True)
+        session = active_g21_games[group_id]
         
         if session.phase != GamePhase.ACTION: return await call.answer("❌ 不在操作阶段", show_alert=True)
         if not session.is_player_in_game(user_id): return await call.answer("❌ 您不在游戏中", show_alert=False)
@@ -840,8 +840,8 @@ async def handle_stand_callback(client: Client, call: CallbackQuery):
         group_id = int(call.data.split('_')[2])
         user_id = call.from_user.id
         
-        if group_id not in active_multiplayer_g21_games: return await call.answer("❌ 游戏不存在", show_alert=True)
-        session = active_multiplayer_g21_games[group_id]
+        if group_id not in active_g21_games: return await call.answer("❌ 游戏不存在", show_alert=True)
+        session = active_g21_games[group_id]
         
         if session.phase != GamePhase.ACTION: return await call.answer("❌ 不在操作阶段", show_alert=True)
         if not session.is_player_in_game(user_id): return await call.answer("❌ 您不在游戏中", show_alert=False)
@@ -870,11 +870,11 @@ async def monitor_session_timeout():
         current_time = time.time()
         expired_sessions = []
         
-        for group_id, session in active_multiplayer_g21_games.items():
+        for group_id, session in active_g21_games.items():
             if current_time - session.created_at > 300: 
                 expired_sessions.append(group_id)
         
         for group_id in expired_sessions:
             LOGGER.warning(f"清理过期会话 - 群组ID: {group_id}")
-            session = active_multiplayer_g21_games[group_id]
+            session = active_g21_games[group_id]
             await session.cleanup(bot, refund_all=True)
