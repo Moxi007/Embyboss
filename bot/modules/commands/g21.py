@@ -1,7 +1,7 @@
 """
-多人21点游戏模块
+21点游戏模块
 
-支持1-20人同时参与的多人21点游戏。
+支持1-20人同时参与的21点游戏。
 由玩家通过 /startg21 发起并担任庄家，其他玩家通过 /g21 参与。
 平局判定为庄家胜出，所有筹码的输赢直接在庄家与玩家间结算。
 玩家退出或庄家强制解散均会面临金币扣除惩罚。
@@ -150,7 +150,7 @@ class ScoreboardRenderer:
     def render_lobby(dealer_user_id: int, dealer_name: str, players: List[dict], countdown: int) -> str:
         dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
         lines = [
-            "🎰 **多人21点游戏 - 筹备阶段**", "",
+            "🎰 **21点游戏 - 筹备阶段**", "",
             f"🎩 **本局庄家：** {dealer_link}",
             f"⏱ 倒计时：**{countdown}** 秒",
             f"👥 当前玩家数：**{len(players)}**/20", "",
@@ -173,14 +173,14 @@ class ScoreboardRenderer:
                                         players: List[dict], countdown: int) -> str:
         """渲染庄家操作阶段的看板"""
         dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
-        dealer_hand = format_hand(dealer_cards, hide_second=True)  # 公共消息中隐藏暗牌
         dealer_points = G21Logic.calculate_points([dealer_cards[0]])  # 只显示明牌点数
         
         lines = [
             "🎰 **多人21点游戏 - 庄家操作阶段**", "",
             f"⏱ 剩余时间：**{countdown}** 秒", "",
-            f"🎩 **庄家 ({dealer_link}) 手牌：**",
-            f"{dealer_hand} (明牌点数：{dealer_points})", "",
+            f"🎩 **庄家 ({dealer_link})**",
+            f"明牌：{dealer_cards[0]} (点数：{dealer_points})",
+            f"暗牌：🂠", "",
             "👥 **等待庄家操作中...**", "",
             "📋 **玩家列表：**"
         ]
@@ -196,7 +196,7 @@ class ScoreboardRenderer:
                          countdown: int, hide_dealer_second: bool = True) -> str:
         dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
         lines = [
-            "🎰 **多人21点游戏 - 玩家操作阶段**", "",
+            "🎰 **21点游戏 - 玩家操作阶段**", "",
             f"⏱ 剩余时间：**{countdown}** 秒", "",
             f"🎩 **庄家 ({dealer_link}) 手牌：**"
         ]
@@ -244,7 +244,7 @@ class ScoreboardRenderer:
         dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
         
         lines = [
-            "🎰 **多人21点游戏 - 结算**", "",
+            "🎰 **21点游戏 - 结算**", "",
             f"🎩 **庄家 ({dealer_link}) 最终手牌：**",
             f"{dealer_hand} (点数：{dealer_points})", 
             f"💰 **庄家本局净收益：** **{profit_str}** {sakura_b}", "",
@@ -821,7 +821,7 @@ async def handle_startg21_command(client: Client, message: Message):
         await lobby_manager.create_lobby_panel(client, group_id)
         session.countdown_task = asyncio.create_task(lobby_manager.start_countdown(client, session.lobby_timeout))
         
-        try: await client.send_message(user_id, f"✅ 您已成功发起一局多人21点并担任庄家！")
+        try: await client.send_message(user_id, f"✅ 您已成功发起一局21点并担任庄家！")
         except: pass
         
     except Exception as e:
