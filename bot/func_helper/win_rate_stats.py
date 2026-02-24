@@ -180,7 +180,7 @@ class WinRateStatsManager:
         return message
 
     @staticmethod
-    def get_win_rate_rank_pages():
+    async def get_win_rate_rank_pages():
         """
         获取胜率排行榜的所有分页数据
         
@@ -191,6 +191,10 @@ class WinRateStatsManager:
         """
         import math
         import cn2an
+        from bot.func_helper.utils import get_users
+        
+        # 获取 Telegram 用户名字典（异步场景）
+        members_dict = await get_users()
         
         with Session() as session:
             # 查询至少参与过 1 局游戏的玩家总数
@@ -227,7 +231,8 @@ class WinRateStatsManager:
                 # 构建当前页文本
                 text = ""
                 for idx, (user, win_rate) in enumerate(page_users, start=offset + 1):
-                    name = (user.name or str(user.tg))[:12]
+                    # 使用 Telegram 用户名，无法获取时降级显示 Telegram ID
+                    name = str(members_dict.get(user.tg, user.tg))[:12]
                     medal = medals[idx - 1] if idx <= 3 else medals[3]
                     text += f"{medal} **第{idx}名** | [{name}](tg://user?id={user.tg}) - 胜率 **{win_rate:.2f}%** ({user.game_won}胜/{user.game_played}局)\n"
                 

@@ -2,7 +2,7 @@
 游戏胜率统计查询命令
 处理 /win 和 /胜率 命令
 """
-from pyrogram import filters
+from pyrogram import filters, enums
 from bot import bot, prefixes, LOGGER
 from bot.func_helper.msg_utils import sendMessage
 from bot.func_helper.win_rate_stats import WinRateStatsManager
@@ -31,13 +31,14 @@ async def handle_gamestats_command(_, msg):
         target_user_id = msg.reply_to_message.from_user.id
         target_username = msg.reply_to_message.from_user.first_name
     elif len(msg.command) > 1:
-        # 有参数时查询指定用户
+        # 有参数时查询指定用户（异步场景）
         try:
             target_user_id = int(msg.command[1])
-            # 需要查询数据库获取用户名
-            from bot.sql_helper.sql_emby import sql_get_emby
-            user = sql_get_emby(target_user_id)
-            target_username = user.name if user and user.name else "未知用户"
+            # 通过 get_users() 获取 Telegram 用户名字典
+            from bot.func_helper.utils import get_users
+            members_dict = await get_users()
+            # 使用 Telegram 用户名，无法获取时降级显示 Telegram ID
+            target_username = members_dict.get(target_user_id, target_user_id)
         except (ValueError, AttributeError):
             await sendMessage(msg, "❌ 无效的用户ID")
             return
@@ -70,7 +71,7 @@ async def handle_leaderboard_command(_, msg):
     sender = msg.from_user.id if not msg.sender_chat else msg.sender_chat.id
     
     reply = await msg.reply("请稍等......加载中")
-    pages_text, total_pages = WinRateStatsManager.get_win_rate_rank_pages()
+    pages_text, total_pages = await WinRateStatsManager.get_win_rate_rank_pages()
     
     if not pages_text:
         await reply.edit("🏆 胜率排行榜\n\n暂无排行数据")
@@ -85,6 +86,7 @@ async def handle_leaderboard_command(_, msg):
             photo=bot_photo,
             caption=f"**▎🏆 胜率排行榜**\n\n{pages_text[0]}",
             buttons=button,
+            parse_mode=enums.ParseMode.MARKDOWN,
         ),
     )
 
@@ -106,7 +108,7 @@ async def handle_win_rate_page(_, call):
     
     await callAnswer(call, f"将为您翻到第 {j} 页")
     
-    pages_text, total_pages = WinRateStatsManager.get_win_rate_rank_pages()
+    pages_text, total_pages = await WinRateStatsManager.get_win_rate_rank_pages()
     button = await win_rate_button(total_pages, j, tg)
     text = pages_text[j - 1]
     
