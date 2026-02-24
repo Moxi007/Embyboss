@@ -104,7 +104,8 @@ _monitor_task_started = False
 
 class GamePhase:
     LOBBY = "LOBBY"
-    ACTION = "ACTION"
+    DEALER_ACTION = "DEALER_ACTION"  # 新增：庄家操作阶段
+    PLAYER_ACTION = "PLAYER_ACTION"  # 重命名：原ACTION改为PLAYER_ACTION
     RESOLUTION = "RESOLUTION"
 
 class PlayerState:
@@ -168,11 +169,34 @@ class ScoreboardRenderer:
         return "\n".join(lines)
     
     @staticmethod
-    def render_scoreboard(dealer_user_id: int, dealer_name: str, dealer_cards: List[str], players: List[dict], 
+    def render_dealer_action_scoreboard(dealer_user_id: int, dealer_name: str, dealer_cards: List[str], 
+                                        players: List[dict], countdown: int) -> str:
+        """渲染庄家操作阶段的看板"""
+        dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
+        dealer_hand = format_hand(dealer_cards, hide_second=True)  # 公共消息中隐藏暗牌
+        dealer_points = G21Logic.calculate_points([dealer_cards[0]])  # 只显示明牌点数
+        
+        lines = [
+            "🎰 **多人21点游戏 - 庄家操作阶段**", "",
+            f"⏱ 剩余时间：**{countdown}** 秒", "",
+            f"🎩 **庄家 ({dealer_link}) 手牌：**",
+            f"{dealer_hand} (明牌点数：{dealer_points})", "",
+            "👥 **等待庄家操作中...**", "",
+            "📋 **玩家列表：**"
+        ]
+        
+        for i, player in enumerate(players, 1):
+            user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
+            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b}")
+        
+        return "\n".join(lines)
+    
+    @staticmethod
+    def render_player_action_scoreboard(dealer_user_id: int, dealer_name: str, dealer_cards: List[str], players: List[dict], 
                          countdown: int, hide_dealer_second: bool = True) -> str:
         dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
         lines = [
-            "🎰 **多人21点游戏 - 操作阶段**", "",
+            "🎰 **多人21点游戏 - 玩家操作阶段**", "",
             f"⏱ 剩余时间：**{countdown}** 秒", "",
             f"🎩 **庄家 ({dealer_link}) 手牌：**"
         ]
@@ -278,6 +302,11 @@ class G21Session:
         self.action_timeout = 60
         self.lobby_remaining = self.lobby_timeout
         self.action_remaining = self.action_timeout
+        
+        # 新增：庄家状态跟踪
+        self.dealer_state = PlayerState.PLAYING
+        self.dealer_action_timeout = 60
+        self.dealer_remaining = self.dealer_action_timeout
     
     def get_player(self, user_id: int) -> Optional[dict]:
         for player in self.players:
@@ -364,33 +393,68 @@ class G21Session:
         if self.group_id in active_g21_games:
             del active_g21_games[self.group_id]
     
-    async def start_action_phase(self, client: Client):
-        if self.countdown_task and not self.countdown_task.done(): self.countdown_task.cancel()
+    async def start_dealer_action_phase(self, client: Client):
+        """开始庄家操作阶段"""
+        if self.countdown_task and not self.countdown_task.done(): 
+            self.countdown_task.cancel()
         
         try:
-            if self.lobby_message_id: await client.delete_messages(self.group_id, self.lobby_message_id)
+            if self.lobby_message_id: 
+                await client.delete_messages(self.group_id, self.lobby_message_id)
         except: pass
         
-        self.phase = GamePhase.ACTION
+        self.phase = GamePhase.DEALER_ACTION
         action_controller = ActionPhaseController(self)
         await action_controller.deal_initial_cards()
-        await action_controller.create_scoreboard(client, self.group_id)
         
+        # 给庄家发送私聊消息显示完整手牌
+        await action_controller.send_dealer_private_message(client)
+        
+        # 创建庄家操作看板
+        await action_controller.create_dealer_scoreboard(client, self.group_id)
+        
+        # 启动庄家操作倒计时
+        async def dealer_countdown():
+            self.dealer_remaining = self.dealer_action_timeout
+            while self.dealer_remaining > 0 and self.phase == GamePhase.DEALER_ACTION:
+                await asyncio.sleep(1)
+                self.dealer_remaining -= 1
+            
+            if self.phase == GamePhase.DEALER_ACTION:
+                # 超时自动停牌
+                self.dealer_state = PlayerState.STAND
+                await self.start_player_action_phase(client)
+        
+        self.countdown_task = asyncio.create_task(dealer_countdown())
+    
+    async def start_player_action_phase(self, client: Client):
+        """开始玩家操作阶段"""
+        if self.countdown_task and not self.countdown_task.done(): 
+            self.countdown_task.cancel()
+        
+        self.phase = GamePhase.PLAYER_ACTION
+        action_controller = ActionPhaseController(self)
+        
+        # 创建玩家操作看板
+        await action_controller.create_player_scoreboard(client, self.group_id)
+        
+        # 启动批量更新循环
         self.update_task = asyncio.create_task(action_controller.start_batch_update_loop(client))
         
-        async def action_countdown():
+        # 启动玩家操作倒计时
+        async def player_countdown():
             self.action_remaining = self.action_timeout
-            while self.action_remaining > 0 and self.phase == GamePhase.ACTION:
+            while self.action_remaining > 0 and self.phase == GamePhase.PLAYER_ACTION:
                 await asyncio.sleep(1)
                 self.action_remaining -= 1
             
-            if self.phase == GamePhase.ACTION:
+            if self.phase == GamePhase.PLAYER_ACTION:
                 for player in self.players:
                     if player['state'] == PlayerState.PLAYING:
                         player['state'] = PlayerState.STAND
                 await self.start_resolution_phase(client)
         
-        self.countdown_task = asyncio.create_task(action_countdown())
+        self.countdown_task = asyncio.create_task(player_countdown())
     
     async def start_resolution_phase(self, client: Client):
         if self.countdown_task and not self.countdown_task.done(): self.countdown_task.cancel()
@@ -398,10 +462,9 @@ class G21Session:
         
         self.phase = GamePhase.RESOLUTION
         resolution_manager = ResolutionManager(self)
-        await resolution_manager.dealer_draw_cards()
         
         try:
-            message_text = ScoreboardRenderer.render_scoreboard(
+            message_text = ScoreboardRenderer.render_player_action_scoreboard(
                 self.dealer_user_id, self.dealer_name, self.dealer_cards, self.players, 0, hide_dealer_second=False
             )
             await client.edit_message_text(
@@ -454,7 +517,7 @@ class LobbyManager:
         
         if self.session.phase == GamePhase.LOBBY:
             if len(self.session.players) > 0:
-                await self.session.start_action_phase(client)
+                await self.session.start_dealer_action_phase(client)
             else:
                 x = await client.send_message(self.session.group_id, "🈳 倒计时结束，无人上车，牌局自动解散。")
                 asyncio.create_task(delete_message_after_delay(client, self.session.group_id, x.id, 20))
@@ -474,6 +537,55 @@ class ActionPhaseController:
             player['points'] = G21Logic.calculate_points(player['cards'])
             if player['points'] == 21 and len(player['cards']) == 2:
                 player['state'] = PlayerState.BLACKJACK
+    
+    async def send_dealer_private_message(self, client: Client):
+        """给庄家发送私聊消息显示完整手牌"""
+        dealer_hand = format_hand(self.session.dealer_cards, hide_second=False)
+        dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
+        
+        message_text = (
+            f"🎩 **您的手牌（庄家视角）**\n\n"
+            f"手牌：{dealer_hand}\n"
+            f"点数：**{dealer_points}**\n\n"
+            f"💡 请在群组中点击按钮进行操作"
+        )
+        
+        try:
+            await client.send_message(self.session.dealer_user_id, message_text)
+        except:
+            pass  # 如果无法发送私聊消息，忽略错误
+    
+    async def handle_dealer_hit(self) -> dict:
+        """处理庄家要牌"""
+        if self.session.dealer_state != PlayerState.PLAYING:
+            return {"success": False, "message": "您已完成操作"}
+        
+        new_card = G21Logic.deal_card(self.session.deck)
+        if not new_card:
+            return {"success": False, "message": "牌堆已空"}
+        
+        self.session.dealer_cards.append(new_card)
+        dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
+        
+        if dealer_points > 21:
+            self.session.dealer_state = PlayerState.BUST
+            message = f"💥 爆牌！抽到 {new_card}，当前点数：{dealer_points}"
+        elif len(self.session.dealer_cards) == 5 and dealer_points <= 21:
+            self.session.dealer_state = PlayerState.FIVE_DRAGON
+            message = f"🐉 五小龙！抽到 {new_card}，当前点数：{dealer_points}"
+        else:
+            message = f"🎴 抽到 {new_card}，当前点数：{dealer_points}"
+        
+        return {"success": True, "message": message}
+    
+    async def handle_dealer_stand(self) -> dict:
+        """处理庄家停牌"""
+        if self.session.dealer_state != PlayerState.PLAYING:
+            return {"success": False, "message": "您已完成操作"}
+        
+        self.session.dealer_state = PlayerState.STAND
+        dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
+        return {"success": True, "message": f"🛑 停牌成功，当前点数：{dealer_points}"}
     
     async def handle_hit(self, user_id: int) -> dict:
         player = self.session.get_player(user_id)
@@ -510,8 +622,26 @@ class ActionPhaseController:
             player['state'] = PlayerState.STAND
             return {"success": True, "message": f"🛑 停牌成功，当前点数：{player['points']}"}
     
-    async def create_scoreboard(self, client: Client, group_id: int) -> int:
-        message_text = ScoreboardRenderer.render_scoreboard(
+    async def create_dealer_scoreboard(self, client: Client, group_id: int) -> int:
+        """创建庄家操作阶段的看板"""
+        message_text = ScoreboardRenderer.render_dealer_action_scoreboard(
+            self.session.dealer_user_id,
+            self.session.dealer_name,
+            self.session.dealer_cards,
+            self.session.players,
+            self.session.dealer_remaining
+        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🎴 要牌", callback_data=f"mpg21_dealer_hit_{group_id}"),
+             InlineKeyboardButton("🛑 停牌", callback_data=f"mpg21_dealer_stand_{group_id}")]
+        ])
+        message = await client.send_message(chat_id=group_id, text=message_text, reply_markup=keyboard)
+        self.session.scoreboard_message_id = message.id
+        return message.id
+    
+    async def create_player_scoreboard(self, client: Client, group_id: int) -> int:
+        """创建玩家操作阶段的看板"""
+        message_text = ScoreboardRenderer.render_player_action_scoreboard(
             self.session.dealer_user_id, self.session.dealer_name, self.session.dealer_cards, self.session.players, self.session.action_remaining, hide_dealer_second=True
         )
         keyboard = InlineKeyboardMarkup([
@@ -522,9 +652,10 @@ class ActionPhaseController:
         self.session.scoreboard_message_id = message.id
         return message.id
     
-    async def update_scoreboard(self, client: Client):
+    async def update_player_scoreboard(self, client: Client):
+        """更新玩家操作阶段的看板"""
         if not self.session.scoreboard_message_id: return
-        message_text = ScoreboardRenderer.render_scoreboard(
+        message_text = ScoreboardRenderer.render_player_action_scoreboard(
             self.session.dealer_user_id, self.session.dealer_name, self.session.dealer_cards, self.session.players, self.session.action_remaining, hide_dealer_second=True
         )
         keyboard = InlineKeyboardMarkup([
@@ -543,10 +674,10 @@ class ActionPhaseController:
         except Exception: pass
     
     async def start_batch_update_loop(self, client: Client):
-        while self.session.phase == GamePhase.ACTION:
+        while self.session.phase == GamePhase.PLAYER_ACTION:
             await asyncio.sleep(4)
-            if self.session.phase != GamePhase.ACTION: break
-            await self.update_scoreboard(client)
+            if self.session.phase != GamePhase.PLAYER_ACTION: break
+            await self.update_player_scoreboard(client)
     
     def check_all_players_done(self) -> bool:
         for player in self.session.players:
@@ -557,9 +688,6 @@ class ActionPhaseController:
 class ResolutionManager:
     def __init__(self, session: G21Session):
         self.session = session
-    
-    async def dealer_draw_cards(self):
-        self.session.dealer_cards = G21Logic.dealer_auto_draw(self.session.dealer_cards, self.session.deck)
     
     async def settle_single_player(self, player: dict) -> dict:
         player_points = player['points']
@@ -762,7 +890,7 @@ async def handle_g21_command(client: Client, message: Message):
         await LobbyManager(session).update_lobby_panel(client)
         
         if len(session.players) >= 20:
-            await session.start_action_phase(client)
+            await session.start_dealer_action_phase(client)
         
     except Exception as e:
         LOGGER.error(f"处理 /g21 失败: {e}")
@@ -824,6 +952,66 @@ async def handle_lobby_quit_callback(client: Client, call: CallbackQuery):
     except: pass
 
 
+@bot.on_callback_query(filters.regex(r"^mpg21_dealer_hit_"))
+async def handle_dealer_hit_callback(client: Client, call: CallbackQuery):
+    """处理庄家要牌回调"""
+    try:
+        group_id = int(call.data.split('_')[3])
+        user_id = call.from_user.id
+        
+        if group_id not in active_g21_games:
+            return await call.answer("❌ 游戏不存在", show_alert=True)
+        
+        session = active_g21_games[group_id]
+        
+        if session.phase != GamePhase.DEALER_ACTION:
+            return await call.answer("❌ 不在庄家操作阶段", show_alert=True)
+        
+        if session.dealer_user_id != user_id:
+            return await call.answer("❌ 只有庄家可以操作", show_alert=True)
+        
+        action_controller = ActionPhaseController(session)
+        result = await action_controller.handle_dealer_hit()
+        await call.answer(result['message'], show_alert=False)
+        
+        # 更新庄家私聊消息
+        await action_controller.send_dealer_private_message(client)
+        
+        # 如果庄家完成操作，进入玩家操作阶段
+        if session.dealer_state != PlayerState.PLAYING:
+            await session.start_player_action_phase(client)
+    except:
+        pass
+
+
+@bot.on_callback_query(filters.regex(r"^mpg21_dealer_stand_"))
+async def handle_dealer_stand_callback(client: Client, call: CallbackQuery):
+    """处理庄家停牌回调"""
+    try:
+        group_id = int(call.data.split('_')[3])
+        user_id = call.from_user.id
+        
+        if group_id not in active_g21_games:
+            return await call.answer("❌ 游戏不存在", show_alert=True)
+        
+        session = active_g21_games[group_id]
+        
+        if session.phase != GamePhase.DEALER_ACTION:
+            return await call.answer("❌ 不在庄家操作阶段", show_alert=True)
+        
+        if session.dealer_user_id != user_id:
+            return await call.answer("❌ 只有庄家可以操作", show_alert=True)
+        
+        action_controller = ActionPhaseController(session)
+        result = await action_controller.handle_dealer_stand()
+        await call.answer(result['message'], show_alert=False)
+        
+        # 进入玩家操作阶段
+        await session.start_player_action_phase(client)
+    except:
+        pass
+
+
 @bot.on_callback_query(filters.regex(r"^mpg21_hit_"))
 async def handle_hit_callback(client: Client, call: CallbackQuery):
     try:
@@ -833,11 +1021,7 @@ async def handle_hit_callback(client: Client, call: CallbackQuery):
         if group_id not in active_g21_games: return await call.answer("❌ 游戏不存在", show_alert=True)
         session = active_g21_games[group_id]
         
-        if session.phase != GamePhase.ACTION: return await call.answer("❌ 不在操作阶段", show_alert=True)
-        
-        # 检查是否是庄家
-        if session.dealer_user_id == user_id:
-            return await call.answer("🎩 您是本局庄家，无需操作。庄家将在结算阶段自动补牌。", show_alert=True)
+        if session.phase != GamePhase.PLAYER_ACTION: return await call.answer("❌ 不在玩家操作阶段", show_alert=True)
         
         if not session.is_player_in_game(user_id): return await call.answer("❌ 您不在游戏中", show_alert=False)
         
@@ -859,11 +1043,7 @@ async def handle_stand_callback(client: Client, call: CallbackQuery):
         if group_id not in active_g21_games: return await call.answer("❌ 游戏不存在", show_alert=True)
         session = active_g21_games[group_id]
         
-        if session.phase != GamePhase.ACTION: return await call.answer("❌ 不在操作阶段", show_alert=True)
-        
-        # 检查是否是庄家
-        if session.dealer_user_id == user_id:
-            return await call.answer("🎩 您是本局庄家，无需操作。庄家将在结算阶段自动补牌。", show_alert=True)
+        if session.phase != GamePhase.PLAYER_ACTION: return await call.answer("❌ 不在玩家操作阶段", show_alert=True)
         
         if not session.is_player_in_game(user_id): return await call.answer("❌ 您不在游戏中", show_alert=False)
         
