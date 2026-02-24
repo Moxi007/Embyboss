@@ -23,6 +23,7 @@ from pyrogram.errors import FloodWait, MessageNotModified
 # 导入 bot 原有变量和配置
 from bot import bot, prefixes, sakura_b, game, LOGGER
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
+from bot.func_helper.win_rate_stats import WinRateStatsManager
 
 
 # ==================== 21点游戏核心逻辑类 ====================
@@ -281,7 +282,14 @@ class ScoreboardRenderer:
                 coin_change = f"-{bet_amount}"
             
             user_link = ScoreboardRenderer.format_user_link(result['user_id'], username)
-            lines.append(f"{i}. {icon} {user_link} - {result_text} (点数：{player_points}) | 变动：**{coin_change}**")
+            player_line = f"{i}. {icon} {user_link} - {result_text} (点数：{player_points}) | 变动：**{coin_change}**"
+            
+            # 添加胜率信息
+            win_rate_text = result.get('win_rate_text', '')
+            if win_rate_text:
+                player_line += f" | {win_rate_text}"
+            
+            lines.append(player_line)
         
         lines.append("")
         lines.append("💡 本消息将在 180 秒后自动删除")
@@ -812,6 +820,28 @@ class ResolutionManager:
                     break
             except:
                 await asyncio.sleep(1)
+        
+        # 构建玩家结果列表用于胜率统计（不包括庄家）
+        player_results = []
+        for result in results:
+            # 获胜判定：result == "WIN" 或平局（平局算庄家赢，所以玩家不算获胜）
+            won = result['result'] == "WIN"
+            player_results.append({
+                'user_id': result['user_id'],
+                'participated': True,
+                'won': won
+            })
+        
+        # 更新胜率统计数据
+        await WinRateStatsManager.update_game_stats(player_results)
+        
+        # 为每个玩家附加胜率信息
+        for result in results:
+            stats = WinRateStatsManager.get_user_stats(result['user_id'])
+            if stats:
+                result['win_rate_text'] = WinRateStatsManager.format_win_rate(stats)
+            else:
+                result['win_rate_text'] = ""
                 
         return results
     

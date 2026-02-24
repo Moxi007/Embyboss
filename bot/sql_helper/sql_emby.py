@@ -25,9 +25,63 @@ class Emby(Base):
     us = Column(Integer, default=0)
     iv = Column(Integer, default=0)
     ch = Column(DateTime, nullable=True)
+    game_played = Column(Integer, default=0)  # 参与游戏总场次
+    game_won = Column(Integer, default=0)     # 获胜游戏场次
 
 
 Emby.__table__.create(bind=engine, checkfirst=True)
+
+
+def migrate_add_game_stats_fields():
+    """
+    数据库迁移：添加游戏统计字段
+    在系统启动时自动执行，检查并添加 game_played 和 game_won 字段
+    """
+    with Session() as session:
+        try:
+            # 检查字段是否存在
+            result = session.execute(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'emby'"
+            )
+            existing_columns = {row[0] for row in result}
+            
+            # 检查并添加 game_played 字段
+            if 'game_played' not in existing_columns:
+                LOGGER.info("检测到 game_played 字段不存在，开始添加...")
+                session.execute(
+                    "ALTER TABLE emby ADD COLUMN game_played INT DEFAULT 0 NOT NULL"
+                )
+                session.execute(
+                    "UPDATE emby SET game_played = 0 WHERE game_played IS NULL"
+                )
+                session.commit()
+                LOGGER.info("成功添加 game_played 字段")
+            else:
+                LOGGER.debug("game_played 字段已存在，跳过迁移")
+            
+            # 检查并添加 game_won 字段
+            if 'game_won' not in existing_columns:
+                LOGGER.info("检测到 game_won 字段不存在，开始添加...")
+                session.execute(
+                    "ALTER TABLE emby ADD COLUMN game_won INT DEFAULT 0 NOT NULL"
+                )
+                session.execute(
+                    "UPDATE emby SET game_won = 0 WHERE game_won IS NULL"
+                )
+                session.commit()
+                LOGGER.info("成功添加 game_won 字段")
+            else:
+                LOGGER.debug("game_won 字段已存在，跳过迁移")
+            
+            LOGGER.info("数据库迁移完成")
+            return True
+            
+        except Exception as e:
+            LOGGER.error(f"数据库迁移失败: {e}")
+            session.rollback()
+            # 迁移失败不中断系统启动
+            return False
 
 
 def sql_add_emby(tg: int):

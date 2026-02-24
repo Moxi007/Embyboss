@@ -6,6 +6,7 @@ from pyrogram import filters
 from bot import bot, prefixes, sakura_b, game, LOGGER
 from bot.func_helper.msg_utils import deleteMessage
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
+from bot.func_helper.win_rate_stats import WinRateStatsManager
 
 async def get_fullname_with_link(user_id):
     try:
@@ -352,6 +353,19 @@ class BettingSystem:
         # 分配奖励
         total_winner_amount = sum(p['amount'] for p in winners)
         
+        # 构建玩家结果列表用于更新胜率统计
+        player_results = []
+        for participant in participants:
+            player_results.append({
+                'user_id': participant['user_id'],
+                'participated': True,
+                'won': participant['type'] == winning_type
+            })
+        
+        # 异步更新胜率统计
+        if player_results:
+            asyncio.create_task(WinRateStatsManager.update_game_stats(player_results))
+        
         result_message = f"""🎲 赌局开奖结果：{result} ({winning_type})
 
 """
@@ -370,7 +384,14 @@ class BettingSystem:
                 winner['status'] = 1
                 
                 user_link = await get_fullname_with_link(winner['tg_id'])
-                result_message += f"🏆 {user_link} 获得 {personal_reward} {sakura_b}\n"
+                
+                # 获取并附加胜率信息
+                stats = WinRateStatsManager.get_user_stats(winner['user_id'])
+                win_rate_text = ""
+                if stats:
+                    win_rate_text = f" ({WinRateStatsManager.format_win_rate(stats)})"
+                
+                result_message += f"🏆 {user_link} 获得 {personal_reward} {sakura_b}{win_rate_text}\n"
         else:
             result_message += "😅 没有获胜者，投注金额不予退还\n"
         
