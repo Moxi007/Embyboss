@@ -4,7 +4,7 @@
 from bot.sql_helper import Base, Session, engine
 from sqlalchemy import Column, BigInteger, String, DateTime, Integer, case
 from sqlalchemy import func
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from bot import LOGGER
 
 
@@ -40,39 +40,37 @@ def migrate_add_game_stats_fields():
     with Session() as session:
         try:
             # 检查字段是否存在
-            result = session.execute(
+            result = session.execute(text(
                 "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
                 "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'emby'"
-            )
+            ))
             existing_columns = {row[0] for row in result}
             
-            # 检查并添加 game_played 字段
+            # 添加 game_played 字段
             if 'game_played' not in existing_columns:
                 LOGGER.info("检测到 game_played 字段不存在，开始添加...")
-                session.execute(
-                    "ALTER TABLE emby ADD COLUMN game_played INT DEFAULT 0 NOT NULL"
-                )
-                session.execute(
-                    "UPDATE emby SET game_played = 0 WHERE game_played IS NULL"
-                )
-                session.commit()
-                LOGGER.info("成功添加 game_played 字段")
+                try:
+                    session.execute(text("ALTER TABLE emby ADD COLUMN game_played INT DEFAULT 0 NOT NULL"))
+                    session.commit()
+                    LOGGER.info("成功添加 game_played 字段")
+                except Exception as e:
+                    LOGGER.error(f"添加 game_played 字段失败: {e}")
+                    session.rollback()
             else:
-                LOGGER.debug("game_played 字段已存在，跳过迁移")
+                LOGGER.info("game_played 字段已存在，跳过迁移")
             
-            # 检查并添加 game_won 字段
+            # 添加 game_won 字段
             if 'game_won' not in existing_columns:
                 LOGGER.info("检测到 game_won 字段不存在，开始添加...")
-                session.execute(
-                    "ALTER TABLE emby ADD COLUMN game_won INT DEFAULT 0 NOT NULL"
-                )
-                session.execute(
-                    "UPDATE emby SET game_won = 0 WHERE game_won IS NULL"
-                )
-                session.commit()
-                LOGGER.info("成功添加 game_won 字段")
+                try:
+                    session.execute(text("ALTER TABLE emby ADD COLUMN game_won INT DEFAULT 0 NOT NULL"))
+                    session.commit()
+                    LOGGER.info("成功添加 game_won 字段")
+                except Exception as e:
+                    LOGGER.error(f"添加 game_won 字段失败: {e}")
+                    session.rollback()
             else:
-                LOGGER.debug("game_won 字段已存在，跳过迁移")
+                LOGGER.info("game_won 字段已存在，跳过迁移")
             
             LOGGER.info("数据库迁移完成")
             return True
