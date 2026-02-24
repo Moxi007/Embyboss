@@ -197,9 +197,9 @@ class WinRateStatsManager:
         """
         try:
             with Session() as session:
-                # 查询至少参与过 5 局游戏的玩家
+                # 查询至少参与过 1 局游戏的玩家
                 users = session.query(Emby).filter(
-                    Emby.game_played >= 5
+                    Emby.game_played >= 1
                 ).all()
 
                 if not users:
@@ -249,10 +249,10 @@ class WinRateStatsManager:
             str: 格式化的排行榜文本
         """
         if not leaderboard:
-            return "🏆 胜率排行榜\n\n暂无排行数据（需至少参与 5 局游戏）"
+            return "🏆 胜率排行榜\n\n暂无排行数据（至少参与 1 局游戏）"
 
         message = "🏆 胜率排行榜\n"
-        message += "（最少 5 局游戏）\n\n"
+        message += "（至少参与 1 局游戏）\n\n"
 
         # 排名表情符号
         medals = {1: "🥇", 2: "🥈", 3: "🥉"}
