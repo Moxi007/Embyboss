@@ -48,12 +48,15 @@ async def handle_gamestats_command(_, msg):
         target_username = msg.from_user.first_name
     
     # 创建用户名链接（可点击跳转到用户主页）
-    username_link = f"[{target_username}](tg://user?id={target_user_id})"
+    import re
+    # 暴力删除所有非中文、非英文字母、非数字的字符
+    clean_username = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '', str(target_username))
+    username_link = f"[{clean_username}](tg://user?id={target_user_id})"
     
     # 查询用户统计数据
     stats = WinRateStatsManager.get_user_stats(target_user_id)
     
-    # 格式化并发送统计消息
+    # 格式化并发送统计消息（不传 parse_mode）
     message = WinRateStatsManager.format_stats_message(stats, username_link)
     await sendMessage(msg, message)
     
@@ -86,7 +89,6 @@ async def handle_leaderboard_command(_, msg):
             photo=bot_photo,
             caption=f"**▎🏆 胜率排行榜**\n\n{pages_text[0]}",
             buttons=button,
-            parse_mode=enums.ParseMode.MARKDOWN,
         ),
     )
 
@@ -112,4 +114,8 @@ async def handle_win_rate_page(_, call):
     button = await win_rate_button(total_pages, j, tg)
     text = pages_text[j - 1]
     
-    await editMessage(call, f"**▎🏆 胜率排行榜**\n\n{text}", buttons=button)
+    await editMessage(
+        call, 
+        f"**▎🏆 胜率排行榜**\n\n{text}",
+        buttons=button,
+    )

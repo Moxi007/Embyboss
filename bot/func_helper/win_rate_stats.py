@@ -222,6 +222,8 @@ class WinRateStatsManager:
             users_with_rate.sort(key=lambda x: x[1], reverse=True)
             
             # 为每一页生成内容
+            import re  # 引入正则表达式库
+            
             for page_num in range(1, total_pages + 1):
                 offset = (page_num - 1) * 10
                 
@@ -231,10 +233,23 @@ class WinRateStatsManager:
                 # 构建当前页文本
                 text = ""
                 for idx, (user, win_rate) in enumerate(page_users, start=offset + 1):
-                    # 使用 Telegram 用户名，无法获取时降级显示 Telegram ID
-                    name = str(members_dict.get(user.tg, user.tg))[:12]
+                    # 确保 user.tg 是整数类型
+                    user_tg_id = int(user.tg)
+                    
+                    # 优先获取 TG 昵称，如果没有则获取 Emby 账号名，最后兜底显示 TG ID
+                    raw_name = members_dict.get(user_tg_id, user.name if user.name else str(user_tg_id))
+                    
+                    # 暴力删除所有非中文、非英文字母、非数字的字符
+                    clean_name = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '', str(raw_name))
+                    # 截取前12个字符，如果为空则使用 TG ID
+                    safe_name = clean_name[:12] if clean_name else str(user_tg_id)
+                    
                     medal = medals[idx - 1] if idx <= 3 else medals[3]
-                    text += f"{medal} **第{idx}名** | [{name}](tg://user?id={user.tg}) - 胜率 **{win_rate:.2f}%** ({user.game_won}胜/{user.game_played}局)\n"
+                    
+                    # 采用两行布局：第一行是排名和用户名链接，第二行是胜率数据
+                    # 完全对齐 srank 的格式，链接后直接换行
+                    text += f"{medal}**第{idx}名** | [{safe_name}](tg://user?id={user_tg_id})\n"
+                    text += f"  胜率 **{win_rate:.2f}%** | {user.game_won}胜/{user.game_played}局\n"
                 
                 pages_text.append(text)
             
