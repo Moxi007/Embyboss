@@ -126,6 +126,8 @@ class CommandParser:
         
         bet_str = parts[1].lower()
         if bet_str == "all":
+            if user_balance <= 0:
+                return {"success": False, "bet_amount": 0, "error_message": "余额不足，无法下注"}
             return {"success": True, "bet_amount": user_balance, "error_message": ""}
         
         try:
@@ -166,12 +168,13 @@ class ScoreboardRenderer:
         return "\n".join(lines)
     
     @staticmethod
-    def render_scoreboard(dealer_name: str, dealer_cards: List[str], players: List[dict], 
+    def render_scoreboard(dealer_user_id: int, dealer_name: str, dealer_cards: List[str], players: List[dict], 
                          countdown: int, hide_dealer_second: bool = True) -> str:
+        dealer_link = ScoreboardRenderer.format_user_link(dealer_user_id, dealer_name)
         lines = [
             "🎰 **多人21点游戏 - 操作阶段**", "",
             f"⏱ 剩余时间：**{countdown}** 秒", "",
-            f"🎩 **庄家 ({dealer_name}) 手牌：**"
+            f"🎩 **庄家 ({dealer_link}) 手牌：**"
         ]
         
         dealer_hand = format_hand(dealer_cards, hide_second=hide_dealer_second)
@@ -399,7 +402,7 @@ class G21Session:
         
         try:
             message_text = ScoreboardRenderer.render_scoreboard(
-                self.dealer_name, self.dealer_cards, self.players, 0, hide_dealer_second=False
+                self.dealer_user_id, self.dealer_name, self.dealer_cards, self.players, 0, hide_dealer_second=False
             )
             await client.edit_message_text(
                 chat_id=self.group_id, message_id=self.scoreboard_message_id, text=message_text + "\n\n⏳ 正在结算..."
@@ -509,7 +512,7 @@ class ActionPhaseController:
     
     async def create_scoreboard(self, client: Client, group_id: int) -> int:
         message_text = ScoreboardRenderer.render_scoreboard(
-            self.session.dealer_name, self.session.dealer_cards, self.session.players, self.session.action_remaining, hide_dealer_second=True
+            self.session.dealer_user_id, self.session.dealer_name, self.session.dealer_cards, self.session.players, self.session.action_remaining, hide_dealer_second=True
         )
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🎴 要牌", callback_data=f"mpg21_hit_{group_id}"),
@@ -522,7 +525,7 @@ class ActionPhaseController:
     async def update_scoreboard(self, client: Client):
         if not self.session.scoreboard_message_id: return
         message_text = ScoreboardRenderer.render_scoreboard(
-            self.session.dealer_name, self.session.dealer_cards, self.session.players, self.session.action_remaining, hide_dealer_second=True
+            self.session.dealer_user_id, self.session.dealer_name, self.session.dealer_cards, self.session.players, self.session.action_remaining, hide_dealer_second=True
         )
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🎴 要牌", callback_data=f"mpg21_hit_{self.session.group_id}"),
