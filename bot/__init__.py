@@ -90,7 +90,8 @@ user_p = [
     BotCommand("g21", "[用户] 参与21点游戏"),
     BotCommand("startbet", "[用户] 创建赌局"),
     BotCommand("bet", "[用户] 参与赌局"),
-    BotCommand("gamestats", "[用户] 查看游戏胜率统计")]
+    BotCommand("gamestats", "[用户] 查看游戏胜率统计"),
+    BotCommand("wintop", "[用户] 查看胜率排行榜")]
 
 # 取消 BotCommand("exchange", "[私聊] 使用注册码")
 admin_p = user_p + [

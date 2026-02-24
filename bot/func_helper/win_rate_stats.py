@@ -178,3 +178,94 @@ class WinRateStatsManager:
         message += f"📈 胜率: {win_rate:.2f}%"
         
         return message
+
+    @staticmethod
+    def get_win_rate_leaderboard(limit: int = 10) -> List[Dict]:
+        """
+        查询胜率排行榜
+
+        Args:
+            limit: 返回前 N 名玩家，默认 10
+
+        Returns:
+            List[Dict]: 排行榜数据列表，每个元素包含：
+                - user_id: int - 用户TG ID
+                - username: str - 用户名
+                - game_played: int - 参与场次
+                - game_won: int - 获胜场次
+                - win_rate: float - 胜率百分比
+        """
+        try:
+            with Session() as session:
+                # 查询至少参与过 5 局游戏的玩家
+                users = session.query(Emby).filter(
+                    Emby.game_played >= 5
+                ).all()
+
+                if not users:
+                    LOGGER.info("get_win_rate_leaderboard: 暂无符合条件的玩家")
+                    return []
+
+                # 计算胜率并构建排行榜数据
+                leaderboard = []
+                for user in users:
+                    win_rate = (user.game_won / user.game_played) * 100
+                    leaderboard.append({
+                        'user_id': user.tg,
+                        'username': user.name or "未知用户",
+                        'game_played': user.game_played,
+                        'game_won': user.game_won,
+                        'win_rate': win_rate
+                    })
+
+                # 按胜率降序排序
+                leaderboard.sort(key=lambda x: x['win_rate'], reverse=True)
+
+                # 返回前 N 名
+                result = leaderboard[:limit]
+                LOGGER.info(f"成功查询排行榜: 共 {len(result)} 名玩家")
+                return result
+
+        except Exception as e:
+            LOGGER.error(f"查询排行榜失败: {e}")
+            return []
+
+    @staticmethod
+    def format_leaderboard_message(leaderboard: List[Dict]) -> str:
+        """
+        格式化排行榜消息
+
+        Args:
+            leaderboard: 排行榜数据列表
+
+        Returns:
+            str: 格式化的排行榜文本
+        """
+        if not leaderboard:
+            return "🏆 胜率排行榜\n\n暂无排行数据（需至少参与 5 局游戏）"
+
+        message = "🏆 胜率排行榜 TOP {}\n".format(len(leaderboard))
+        message += "（最少 5 局游戏）\n\n"
+
+        # 排名表情符号
+        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+
+        for idx, player in enumerate(leaderboard, start=1):
+            # 前三名使用奖牌，其他使用数字
+            rank_symbol = medals.get(idx, f"{idx}.")
+
+            username = player['username']
+            user_id = player['user_id']
+            win_rate = player['win_rate']
+            game_played = player['game_played']
+            game_won = player['game_won']
+
+            # 格式化用户名（带链接）
+            user_link = f"<a href='tg://user?id={user_id}'>{username}</a>"
+
+            # 构建排行信息
+            message += f"{rank_symbol} {user_link}\n"
+            message += f"   📈 胜率: {win_rate:.2f}% | 🎮 {game_won}/{game_played} 胜\n\n"
+
+        return message.strip()
+
