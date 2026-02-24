@@ -61,127 +61,53 @@ async def handle_gamestats_command(_, msg):
 
 @bot.on_message(filters.command(['wintop', '胜率榜'], prefixes=prefixes))
 async def handle_leaderboard_command(_, msg):
-    """
-    处理 /wintop 和 /胜率榜 命令
-    显示游戏胜率排行榜
+    """处理 /wintop 和 /胜率榜 命令"""
+    import asyncio
+    from bot.func_helper.fix_bottons import win_rate_button
+    from bot.func_helper.msg_utils import sendPhoto
+    from bot import bot_photo
     
-    支持分页：/wintop 或 /wintop <页码>
-    每页显示 10 个玩家
+    sender = msg.from_user.id if not msg.sender_chat else msg.sender_chat.id
     
-    Args:
-        _: Pyrogram 客户端（未使用）
-        msg: 消息对象
-    """
-    # 解析页码参数
-    page = 1
-    if len(msg.command) > 1:
-        try:
-            page = int(msg.command[1])
-            if page < 1:
-                page = 1
-        except ValueError:
-            await sendMessage(msg, "❌ 无效的页码")
-            return
+    reply = await msg.reply("请稍等......加载中")
+    pages_text, total_pages = WinRateStatsManager.get_win_rate_rank_pages()
     
-    # 查询所有符合条件的玩家（至少参与 5 局）
-    all_players = WinRateStatsManager.get_win_rate_leaderboard(limit=None)
-    
-    if not all_players:
-        await sendMessage(msg, "🏆 胜率排行榜\n\n暂无排行数据（需至少参与 5 局游戏）")
+    if not pages_text:
+        await reply.edit("🏆 胜率排行榜\n\n暂无排行数据")
         return
     
-    # 计算分页
-    import math
-    page_size = 10
-    total_pages = math.ceil(len(all_players) / page_size)
+    button = await win_rate_button(total_pages, 1, sender)
     
-    # 确保页码在有效范围内
-    if page > total_pages:
-        page = total_pages
-    
-    # 获取当前页数据
-    start_idx = (page - 1) * page_size
-    end_idx = start_idx + page_size
-    page_players = all_players[start_idx:end_idx]
-    
-    # 格式化并发送排行榜消息
-    message = WinRateStatsManager.format_leaderboard_message(page_players, page, total_pages, start_idx)
-    
-    # 添加分页按钮
-    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    buttons = []
-    
-    # 上一页按钮
-    if page > 1:
-        buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"wintop:{page-1}"))
-    
-    # 下一页按钮
-    if page < total_pages:
-        buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data=f"wintop:{page+1}"))
-    
-    keyboard = InlineKeyboardMarkup([buttons]) if buttons else None
-    
-    await sendMessage(msg, message, buttons=keyboard)
-    
-    LOGGER.info(f"用户 {msg.from_user.first_name}({msg.from_user.id}) 查询了胜率排行榜（第 {page} 页）")
+    await asyncio.gather(
+        reply.delete(),
+        sendPhoto(
+            msg,
+            photo=bot_photo,
+            caption=f"**▎🏆 胜率排行榜**\n\n{pages_text[0]}",
+            buttons=button,
+        ),
+    )
 
 
-
-@bot.on_callback_query(filters.regex('^wintop:'))
-async def handle_leaderboard_page(_, call):
-    """
-    处理排行榜分页按钮点击
+@bot.on_callback_query(filters.regex('^win_rate:'))
+async def handle_win_rate_page(_, call):
+    """处理排行榜翻页"""
+    from bot.func_helper.msg_utils import callAnswer, editMessage
+    from bot.func_helper.fix_bottons import win_rate_button
+    from bot.func_helper.utils import judge_admins
     
-    Args:
-        _: Pyrogram 客户端（未使用）
-        call: 回调查询对象
-    """
-    from bot.func_helper.msg_utils import editMessage, callAnswer
+    j, tg = map(int, call.data.split(":")[1].split("_"))
     
-    # 解析页码
-    page = int(call.data.split(':')[1])
-    await callAnswer(call, f'🔍 打开第 {page} 页')
+    if call.from_user.id != tg:
+        if not judge_admins(call.from_user.id):
+            return await callAnswer(
+                call, "❌ 这不是你召唤出的榜单，请使用自己的 /wintop", True
+            )
     
-    # 查询所有符合条件的玩家
-    all_players = WinRateStatsManager.get_win_rate_leaderboard(limit=None)
+    await callAnswer(call, f"将为您翻到第 {j} 页")
     
-    if not all_players:
-        await editMessage(call, "🏆 胜率排行榜\n\n暂无排行数据（需至少参与 5 局游戏）")
-        return
+    pages_text, total_pages = WinRateStatsManager.get_win_rate_rank_pages()
+    button = await win_rate_button(total_pages, j, tg)
+    text = pages_text[j - 1]
     
-    # 计算分页
-    import math
-    page_size = 10
-    total_pages = math.ceil(len(all_players) / page_size)
-    
-    # 确保页码在有效范围内
-    if page > total_pages:
-        page = total_pages
-    if page < 1:
-        page = 1
-    
-    # 获取当前页数据
-    start_idx = (page - 1) * page_size
-    end_idx = start_idx + page_size
-    page_players = all_players[start_idx:end_idx]
-    
-    # 格式化排行榜消息
-    message = WinRateStatsManager.format_leaderboard_message(page_players, page, total_pages, start_idx)
-    
-    # 添加分页按钮
-    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    buttons = []
-    
-    # 上一页按钮
-    if page > 1:
-        buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"wintop:{page-1}"))
-    
-    # 下一页按钮
-    if page < total_pages:
-        buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data=f"wintop:{page+1}"))
-    
-    keyboard = InlineKeyboardMarkup([buttons]) if buttons else None
-    
-    await editMessage(call, message, buttons=keyboard)
-    
-    LOGGER.info(f"用户 {call.from_user.first_name}({call.from_user.id}) 查看了胜率排行榜（第 {page} 页）")
+    await editMessage(call, f"**▎🏆 胜率排行榜**\n\n{text}", buttons=button)

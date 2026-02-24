@@ -180,105 +180,58 @@ class WinRateStatsManager:
         return message
 
     @staticmethod
-    def get_win_rate_leaderboard(limit: int = None) -> List[Dict]:
+    def get_win_rate_rank_pages():
         """
-        查询胜率排行榜
-
-        Args:
-            limit: 返回前 N 名玩家，None 表示返回所有符合条件的玩家
-
+        获取胜率排行榜的所有分页数据
+        
         Returns:
-            List[Dict]: 排行榜数据列表，每个元素包含：
-                - user_id: int - 用户TG ID
-                - username: str - 用户名
-                - game_played: int - 参与场次
-                - game_won: int - 获胜场次
-                - win_rate: float - 胜率百分比
+            tuple: (pages_text, total_pages)
+                - pages_text: List[str] - 每页的文本内容列表
+                - total_pages: int - 总页数
         """
-        try:
-            with Session() as session:
-                # 查询至少参与过 1 局游戏的玩家
-                users = session.query(Emby).filter(
-                    Emby.game_played >= 1
-                ).all()
-
-                if not users:
-                    LOGGER.info("get_win_rate_leaderboard: 暂无符合条件的玩家")
-                    return []
-
-                # 计算胜率并构建排行榜数据
-                leaderboard = []
-                for user in users:
-                    win_rate = (user.game_won / user.game_played) * 100
-                    leaderboard.append({
-                        'user_id': user.tg,
-                        'username': user.name or "未知用户",
-                        'game_played': user.game_played,
-                        'game_won': user.game_won,
-                        'win_rate': win_rate
-                    })
-
-                # 按胜率降序排序
-                leaderboard.sort(key=lambda x: x['win_rate'], reverse=True)
-
-                # 返回前 N 名或全部
-                if limit is not None:
-                    result = leaderboard[:limit]
-                else:
-                    result = leaderboard
-                    
-                LOGGER.info(f"成功查询排行榜: 共 {len(result)} 名玩家")
-                return result
-
-        except Exception as e:
-            LOGGER.error(f"查询排行榜失败: {e}")
-            return []
-
-    @staticmethod
-    def format_leaderboard_message(leaderboard: List[Dict], page: int = 1, total_pages: int = 1, start_rank: int = 0) -> str:
-        """
-        格式化排行榜消息
-
-        Args:
-            leaderboard: 排行榜数据列表
-            page: 当前页码
-            total_pages: 总页数
-            start_rank: 起始排名（用于计算实际排名）
-
-        Returns:
-            str: 格式化的排行榜文本
-        """
-        if not leaderboard:
-            return "🏆 胜率排行榜\n\n暂无排行数据（至少参与 1 局游戏）"
-
-        message = "🏆 胜率排行榜\n"
-        message += "（至少参与 1 局游戏）\n\n"
-
-        # 排名表情符号
-        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-
-        for idx, player in enumerate(leaderboard, start=1):
-            # 计算实际排名
-            actual_rank = start_rank + idx
-
-            # 前三名使用奖牌，其他使用数字
-            rank_symbol = medals.get(actual_rank, f"{actual_rank}.")
-
-            username = player['username']
-            user_id = player['user_id']
-            win_rate = player['win_rate']
-            game_played = player['game_played']
-            game_won = player['game_won']
-
-            # 格式化用户名（使用 Markdown 链接）
-            user_link = f"[{username}](tg://user?id={user_id})"
-
-            # 构建排行信息
-            message += f"{rank_symbol} {user_link}\n"
-            message += f"   📈 胜率: {win_rate:.2f}% | 🎮 {game_won}/{game_played} 胜\n\n"
-
-        # 添加分页信息
-        message += f"\n第 {page} 页，共 {total_pages} 页"
-
-        return message.strip()
+        import math
+        import cn2an
+        
+        with Session() as session:
+            # 查询至少参与过 1 局游戏的玩家总数
+            total_count = session.query(Emby).filter(Emby.game_played >= 1).count()
+            
+            if total_count == 0:
+                return None, 1
+            
+            # 计算总页数
+            total_pages = math.ceil(total_count / 10)
+            pages_text = []
+            medals = ["🥇", "🥈", "🥉", "🏅"]
+            
+            # 查询所有玩家（按胜率排序）
+            users = session.query(Emby).filter(
+                Emby.game_played >= 1
+            ).all()
+            
+            # 计算胜率并排序
+            users_with_rate = []
+            for user in users:
+                win_rate = (user.game_won / user.game_played) * 100
+                users_with_rate.append((user, win_rate))
+            
+            users_with_rate.sort(key=lambda x: x[1], reverse=True)
+            
+            # 为每一页生成内容
+            for page_num in range(1, total_pages + 1):
+                offset = (page_num - 1) * 10
+                
+                # 获取当前页数据
+                page_users = users_with_rate[offset:offset + 10]
+                
+                # 构建当前页文本
+                text = ""
+                for idx, (user, win_rate) in enumerate(page_users, start=offset + 1):
+                    name = (user.name or str(user.tg))[:12]
+                    medal = medals[idx - 1] if idx <= 3 else medals[3]
+                    text += f"{medal}**第{cn2an.an2cn(idx)}名** | [{name}](tg://user?id={user.tg}) の **{win_rate:.2f}%** ({user.game_won}/{user.game_played})\n"
+                
+                pages_text.append(text)
+            
+            return pages_text, total_pages
 

@@ -227,6 +227,29 @@ async def users_iv_button(total_page: int, current_page: int, tg) -> InlineKeybo
     return keyboard
 
 
+async def win_rate_button(total_page: int, current_page: int, tg) -> InlineKeyboardMarkup:
+    """
+    胜率排行榜翻页按钮
+    
+    :param total_page: 总页数
+    :param current_page: 当前页数
+    :param tg: 可操作的tg_id
+    :return: InlineKeyboardMarkup
+    """
+    keyboard = InlineKeyboard()
+    keyboard.paginate(total_page, current_page, 'win_rate:{number}' + f'_{tg}')
+    next = InlineButton('⏭️ 后退+5', f'win_rate:{current_page + 5}_{tg}')
+    previous = InlineButton('⏮️ 前进-5', f'win_rate:{current_page - 5}_{tg}')
+    followUp = [InlineButton('❌ 关闭', f'closeit')]
+    if total_page > 5:
+        if current_page - 5 >= 1:
+            followUp.append(previous)
+        if current_page + 5 < total_page:
+            followUp.append(next)
+    keyboard.row(*followUp)
+    return keyboard
+
+
 async def plays_list_button(total_page: int, current_page: int, days) -> InlineKeyboardMarkup:
     """
     :param total_page: 总页数
