@@ -309,7 +309,7 @@ class G21Session:
         self.update_task: Optional[asyncio.Task] = None
         
         self.created_at = time.time()
-        self.lobby_timeout = 60
+        self.lobby_timeout = 40
         self.action_timeout = 60
         self.lobby_remaining = self.lobby_timeout
         self.action_remaining = self.action_timeout
@@ -755,6 +755,9 @@ class ResolutionManager:
                 result, payout, win_type = "LOSE", 0, "TIE_LOSS" # 双方五龙，庄赢
             else:
                 result, payout, win_type = "WIN", bet_amount * 2, "FIVE_DRAGON"
+        elif len(self.session.dealer_cards) == 5 and dealer_points <= 21:
+            # 庄家五小龙，玩家不是五小龙时，庄家获胜
+            result, payout, win_type = "LOSE", 0, "DEALER_FIVE_DRAGON"
         elif dealer_points > 21:
             result, payout, win_type = "WIN", bet_amount, "NORMAL"
         elif player_points > dealer_points:
