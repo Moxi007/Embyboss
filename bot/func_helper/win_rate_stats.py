@@ -244,8 +244,7 @@ class WinRateStatsManager:
                     medal = medals[idx - 1] if idx <= 3 else medals[3]
                     
                     # HTML 格式：使用 <b> 加粗，使用 <a> 创建链接
-                    text += f"{medal}<b>第{idx}名</b> | <a href='tg://user?id={user_tg_id}'>{safe_name}</a>\n"
-                    text += f"  胜率 <b>{win_rate:.2f}%</b> | {user.game_won}胜/{user.game_played}局\n"
+                    text += f"{medal}<b>第{idx}名</b> | <a href='tg://user?id={user_tg_id}'>{safe_name}</a> の 胜率 <b>{win_rate:.2f}%</b> ({user.game_won}胜/{user.game_played}局)\n"
                 
                 pages_text.append(text)
             
