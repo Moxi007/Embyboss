@@ -229,7 +229,7 @@ class WinRateStatsManager:
                 for idx, (user, win_rate) in enumerate(page_users, start=offset + 1):
                     name = (user.name or str(user.tg))[:12]
                     medal = medals[idx - 1] if idx <= 3 else medals[3]
-                    text += f"{medal}**第{cn2an.an2cn(idx)}名** | [{name}](tg://user?id={user.tg}) の **{win_rate:.2f}%** ({user.game_won}/{user.game_played})\n"
+                    text += f"{medal} **第{idx}名** | [{name}](tg://user?id={user.tg}) - 胜率 **{win_rate:.2f}%** ({user.game_won}胜/{user.game_played}局)\n"
                 
                 pages_text.append(text)
             

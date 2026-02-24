@@ -158,7 +158,8 @@ class ScoreboardRenderer:
         ]
         for i, player in enumerate(players, 1):
             user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
-            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b}")
+            player_points = player.get('points', 0)
+            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b} | 点数：**{player_points}**")
         
         if len(players) == 0:
             lines.append("- 暂无玩家上车 -")
@@ -184,7 +185,7 @@ class ScoreboardRenderer:
         visible_cards_str = " ".join(visible_cards)
         
         lines = [
-            "🎰 **多人21点游戏 - 庄家操作阶段**", "",
+            "🎰 **21点游戏 - 庄家操作阶段**", "",
             f"⏱ 剩余时间：**{countdown}** 秒", "",
             f"🎩 **庄家 ({dealer_link})**",
             f"明牌：{visible_cards_str} (可见点数：{dealer_points})",
@@ -195,7 +196,8 @@ class ScoreboardRenderer:
         
         for i, player in enumerate(players, 1):
             user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
-            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b}")
+            player_points = player.get('points', 0)
+            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b} | 点数：**{player_points}**")
         
         return "\n".join(lines)
     
@@ -556,40 +558,38 @@ class ActionPhaseController:
                 player['state'] = PlayerState.BLACKJACK
     
     async def send_dealer_private_message(self, client: Client):
-            """给庄家发送私聊消息显示完整手牌"""
-            dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
+        """给庄家发送私聊消息显示完整手牌"""
+        dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
 
-            if len(self.session.dealer_cards) >= 2:
-                bright_card = self.session.dealer_cards[0]  # 第一张明牌
-                hidden_card = self.session.dealer_cards[1]  # 第二张暗牌
-                additional_bright_cards = self.session.dealer_cards[2:]  # 第三张及之后的明牌
+        if len(self.session.dealer_cards) >= 2:
+            bright_card = self.session.dealer_cards[0]  # 第一张明牌
+            hidden_card = self.session.dealer_cards[1]  # 第二张暗牌
+            additional_bright_cards = self.session.dealer_cards[2:]  # 第三张及之后的明牌
 
-                # 构建明牌显示
-                bright_cards_str = bright_card
-                if additional_bright_cards:
-                    bright_cards_str += " " + " ".join(additional_bright_cards)
+            # 构建明牌显示
+            bright_cards_str = bright_card
+            if additional_bright_cards:
+                bright_cards_str += " " + " ".join(additional_bright_cards)
 
-                message_text = (
-                    f"🎩 **您的手牌（庄家视角）**\n\n"
-                    f"明牌：{bright_cards_str}\n"
-                    f"暗牌：{hidden_card}\n"
-                    f"总点数：**{dealer_points}**\n\n"
-                    f"💡 请在群组中点击按钮进行操作"
-                )
-            else:
-                message_text = (
-                    f"🎩 **您的手牌（庄家视角）**\n\n"
-                    f"手牌：{' '.join(self.session.dealer_cards)}\n"
-                    f"点数：**{dealer_points}**\n\n"
-                    f"💡 请在群组中点击按钮进行操作"
-                )
+            message_text = (
+                f"🎩 **您的手牌（庄家视角）**\n\n"
+                f"明牌：{bright_cards_str}\n"
+                f"暗牌：{hidden_card}\n"
+                f"总点数：**{dealer_points}**\n\n"
+            )
+        else:
+            message_text = (
+                f"🎩 **您的手牌（庄家视角）**\n\n"
+                f"手牌：{' '.join(self.session.dealer_cards)}\n"
+                f"点数：**{dealer_points}**\n\n"
+            )
+        
+        message_text += "💡 请在群组中点击按钮进行操作"
 
-            try:
-                await client.send_message(self.session.dealer_user_id, message_text)
-            except:
-                pass
-  
-    
+        try:
+            await client.send_message(self.session.dealer_user_id, message_text)
+        except:
+            pass
     async def handle_dealer_hit(self) -> dict:
         """处理庄家要牌"""
         if self.session.dealer_state != PlayerState.PLAYING:
@@ -830,6 +830,21 @@ class ResolutionManager:
                 'user_id': result['user_id'],
                 'participated': True,
                 'won': won
+            })
+
+        # 添加庄家信息到胜率统计
+        dealer_won = self.session.dealer_net_profit > 0
+        dealer_id = self.session.dealer_user_id
+        
+        # 检查庄家是否同时也是玩家
+        dealer_as_player = any(r['user_id'] == dealer_id for r in player_results)
+        
+        if not dealer_as_player:
+            # 庄家没有投注，单独添加庄家统计
+            player_results.insert(0, {
+                'user_id': dealer_id,
+                'participated': True,
+                'won': dealer_won
             })
         
         # 更新胜率统计数据
