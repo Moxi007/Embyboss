@@ -158,8 +158,7 @@ class ScoreboardRenderer:
         ]
         for i, player in enumerate(players, 1):
             user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
-            player_points = player.get('points', 0)
-            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b} | 点数：**{player_points}**")
+            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b}")
         
         if len(players) == 0:
             lines.append("- 暂无玩家上车 -")
@@ -168,6 +167,7 @@ class ScoreboardRenderer:
         lines.append("💡 发送 `/g21 [金额]` 参与对局")
         lines.append(f"💡 退出游戏将扣除惩罚 (⚠️ 玩家违约扣 20%，庄家违约扣 100 {sakura_b})")
         return "\n".join(lines)
+
     
     @staticmethod
     def render_dealer_action_scoreboard(dealer_user_id: int, dealer_name: str, dealer_cards: List[str], 
