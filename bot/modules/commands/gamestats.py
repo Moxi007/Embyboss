@@ -3,6 +3,7 @@
 处理 /win 和 /胜率 命令
 """
 from pyrogram import filters, enums
+from pyrogram.enums import ParseMode
 from bot import bot, prefixes, LOGGER
 from bot.func_helper.msg_utils import sendMessage
 from bot.func_helper.win_rate_stats import WinRateStatsManager
@@ -56,7 +57,7 @@ async def handle_gamestats_command(_, msg):
     # 查询用户统计数据
     stats = WinRateStatsManager.get_user_stats(target_user_id)
     
-    # 格式化并发送统计消息（不传 parse_mode）
+    # 格式化并发送统计消息（不传 parse_mode 默认解析 Markdown）
     message = WinRateStatsManager.format_stats_message(stats, username_link)
     await sendMessage(msg, message)
     
@@ -87,8 +88,9 @@ async def handle_leaderboard_command(_, msg):
         sendPhoto(
             msg,
             photo=bot_photo,
-            caption=f"**▎🏆 胜率排行榜**\n\n{pages_text[0]}",
+            caption=f"<b>▎🏆 胜率排行榜</b>\n\n{pages_text[0]}",
             buttons=button,
+            parse_mode=ParseMode.HTML  # 使用 HTML 解析以确保链接生效
         ),
     )
 
@@ -116,6 +118,7 @@ async def handle_win_rate_page(_, call):
     
     await editMessage(
         call, 
-        f"**▎🏆 胜率排行榜**\n\n{text}",
+        f"<b>▎🏆 胜率排行榜</b>\n\n{text}",
         buttons=button,
+        parse_mode=ParseMode.HTML  # 同样指定为 HTML
     )
