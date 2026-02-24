@@ -180,12 +180,12 @@ class WinRateStatsManager:
         return message
 
     @staticmethod
-    def get_win_rate_leaderboard(limit: int = 10) -> List[Dict]:
+    def get_win_rate_leaderboard(limit: int = None) -> List[Dict]:
         """
         查询胜率排行榜
 
         Args:
-            limit: 返回前 N 名玩家，默认 10
+            limit: 返回前 N 名玩家，None 表示返回所有符合条件的玩家
 
         Returns:
             List[Dict]: 排行榜数据列表，每个元素包含：
@@ -221,8 +221,12 @@ class WinRateStatsManager:
                 # 按胜率降序排序
                 leaderboard.sort(key=lambda x: x['win_rate'], reverse=True)
 
-                # 返回前 N 名
-                result = leaderboard[:limit]
+                # 返回前 N 名或全部
+                if limit is not None:
+                    result = leaderboard[:limit]
+                else:
+                    result = leaderboard
+                    
                 LOGGER.info(f"成功查询排行榜: 共 {len(result)} 名玩家")
                 return result
 
@@ -231,12 +235,15 @@ class WinRateStatsManager:
             return []
 
     @staticmethod
-    def format_leaderboard_message(leaderboard: List[Dict]) -> str:
+    def format_leaderboard_message(leaderboard: List[Dict], page: int = 1, total_pages: int = 1, start_rank: int = 0) -> str:
         """
         格式化排行榜消息
 
         Args:
             leaderboard: 排行榜数据列表
+            page: 当前页码
+            total_pages: 总页数
+            start_rank: 起始排名（用于计算实际排名）
 
         Returns:
             str: 格式化的排行榜文本
@@ -244,15 +251,18 @@ class WinRateStatsManager:
         if not leaderboard:
             return "🏆 胜率排行榜\n\n暂无排行数据（需至少参与 5 局游戏）"
 
-        message = "🏆 胜率排行榜 TOP {}\n".format(len(leaderboard))
+        message = "🏆 胜率排行榜\n"
         message += "（最少 5 局游戏）\n\n"
 
         # 排名表情符号
         medals = {1: "🥇", 2: "🥈", 3: "🥉"}
 
         for idx, player in enumerate(leaderboard, start=1):
+            # 计算实际排名
+            actual_rank = start_rank + idx
+
             # 前三名使用奖牌，其他使用数字
-            rank_symbol = medals.get(idx, f"{idx}.")
+            rank_symbol = medals.get(actual_rank, f"{actual_rank}.")
 
             username = player['username']
             user_id = player['user_id']
@@ -260,12 +270,15 @@ class WinRateStatsManager:
             game_played = player['game_played']
             game_won = player['game_won']
 
-            # 格式化用户名（带链接）
-            user_link = f"<a href='tg://user?id={user_id}'>{username}</a>"
+            # 格式化用户名（使用 Markdown 链接）
+            user_link = f"[{username}](tg://user?id={user_id})"
 
             # 构建排行信息
             message += f"{rank_symbol} {user_link}\n"
             message += f"   📈 胜率: {win_rate:.2f}% | 🎮 {game_won}/{game_played} 胜\n\n"
+
+        # 添加分页信息
+        message += f"\n第 {page} 页，共 {total_pages} 页"
 
         return message.strip()
 
