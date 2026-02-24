@@ -106,7 +106,7 @@ async def sendFile(message, file, file_name, caption=None, buttons=None):
         return str(e)
 
 
-async def sendPhoto(message, photo, caption=None, buttons=None, timer=None, send=False, chat_id=None):
+async def sendPhoto(message, photo, caption=None, buttons=None, timer=None, send=False, chat_id=None, parse_mode: Optional["enums.ParseMode"] = None):
     """
     发送图片
     :param message:
@@ -115,6 +115,7 @@ async def sendPhoto(message, photo, caption=None, buttons=None, timer=None, send
     :param buttons:
     :param timer:
     :param send: 是否发送到授权主群
+    :param parse_mode: 解析模式（HTML、Markdown 等）
     :return:
     """
     if isinstance(message, CallbackQuery):
@@ -123,17 +124,17 @@ async def sendPhoto(message, photo, caption=None, buttons=None, timer=None, send
         if send is True:
             if chat_id is None:
                 chat_id = group[0]
-            return await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption, reply_markup=buttons)
+            return await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption, reply_markup=buttons, parse_mode=parse_mode)
         # quote=True 引用回复
         send = await message.reply_photo(photo=photo, caption=caption, disable_notification=True,
-                                         reply_markup=buttons)
+                                         reply_markup=buttons, parse_mode=parse_mode)
         if timer is not None:
             return await deleteMessage(send, timer)
         return True
     except FloodWait as f:
         LOGGER.warning(str(f))
         await sleep(f.value * 1.2)
-        return await sendFile(message, photo, caption, buttons)
+        return await sendPhoto(message, photo, caption, buttons, timer, send, chat_id, parse_mode)
     except Exception as e:
         LOGGER.error(str(e))
         return str(e)
