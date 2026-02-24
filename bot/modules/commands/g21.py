@@ -548,32 +548,39 @@ class ActionPhaseController:
                 player['state'] = PlayerState.BLACKJACK
     
     async def send_dealer_private_message(self, client: Client):
-        """给庄家发送私聊消息显示完整手牌"""
-        dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
-        
-        if len(self.session.dealer_cards) >= 2:
-            bright_card = self.session.dealer_cards[0]  
-            hidden_cards = self.session.dealer_cards[1:]  
-            
-            message_text = (
-                f"🎩 **您的手牌（庄家视角）**\n\n"
-                f"明牌：{bright_card}\n"
-                f"暗牌：{' '.join(hidden_cards)}\n"
-                f"总点数：**{dealer_points}**\n\n"
-                f"💡 请在群组中点击按钮进行操作"
-            )
-        else:
-            message_text = (
-                f"🎩 **您的手牌（庄家视角）**\n\n"
-                f"手牌：{' '.join(self.session.dealer_cards)}\n"
-                f"点数：**{dealer_points}**\n\n"
-                f"💡 请在群组中点击按钮进行操作"
-            )
-        
-        try:
-            await client.send_message(self.session.dealer_user_id, message_text)
-        except:
-            pass  
+            """给庄家发送私聊消息显示完整手牌"""
+            dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
+
+            if len(self.session.dealer_cards) >= 2:
+                bright_card = self.session.dealer_cards[0]  # 第一张明牌
+                hidden_card = self.session.dealer_cards[1]  # 第二张暗牌
+                additional_bright_cards = self.session.dealer_cards[2:]  # 第三张及之后的明牌
+
+                # 构建明牌显示
+                bright_cards_str = bright_card
+                if additional_bright_cards:
+                    bright_cards_str += " " + " ".join(additional_bright_cards)
+
+                message_text = (
+                    f"🎩 **您的手牌（庄家视角）**\n\n"
+                    f"明牌：{bright_cards_str}\n"
+                    f"暗牌：{hidden_card}\n"
+                    f"总点数：**{dealer_points}**\n\n"
+                    f"💡 请在群组中点击按钮进行操作"
+                )
+            else:
+                message_text = (
+                    f"🎩 **您的手牌（庄家视角）**\n\n"
+                    f"手牌：{' '.join(self.session.dealer_cards)}\n"
+                    f"点数：**{dealer_points}**\n\n"
+                    f"💡 请在群组中点击按钮进行操作"
+                )
+
+            try:
+                await client.send_message(self.session.dealer_user_id, message_text)
+            except:
+                pass
+  
     
     async def handle_dealer_hit(self) -> dict:
         """处理庄家要牌"""
