@@ -1,6 +1,6 @@
 """
 游戏胜率统计查询命令
-处理 /gamestats 和 /胜率 命令
+处理 /win 和 /胜率 命令
 """
 from pyrogram import filters
 from bot import bot, prefixes, LOGGER
@@ -8,15 +8,15 @@ from bot.func_helper.msg_utils import sendMessage
 from bot.func_helper.win_rate_stats import WinRateStatsManager
 
 
-@bot.on_message(filters.command(['gamestats', '胜率'], prefixes=prefixes))
+@bot.on_message(filters.command(['win', '胜率'], prefixes=prefixes))
 async def handle_gamestats_command(_, msg):
     """
-    处理 /gamestats 和 /胜率 命令
+    处理 /win 和 /胜率 命令
     显示用户的游戏统计数据
     
     支持三种查询方式：
     1. 直接使用命令：查询自己的胜率
-    2. /gamestats <tgid>：查询指定用户ID的胜率
+    2. /win <tgid>：查询指定用户ID的胜率
     3. 回复别人的消息使用命令：查询被回复者的胜率
     
     优先级：回复消息 > 命令参数 > 自己
