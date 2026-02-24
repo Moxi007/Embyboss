@@ -201,11 +201,15 @@ class ScoreboardRenderer:
             f"🎩 **庄家 ({dealer_link}) 手牌：**"
         ]
         
-        dealer_hand = format_hand(dealer_cards, hide_second=hide_dealer_second)
         if hide_dealer_second:
-            dealer_points = G21Logic.calculate_points([dealer_cards[0]])
-            lines.append(f"{dealer_hand} (明牌点数：{dealer_points})")
+            # 构建明牌列表：第一张牌 + 第三张及之后的所有牌（跳过第二张暗牌）
+            visible_cards = [dealer_cards[0]] + dealer_cards[2:]
+            dealer_points = G21Logic.calculate_points(visible_cards)
+            visible_cards_str = " ".join(visible_cards)
+            lines.append(f"明牌：{visible_cards_str} (点数：{dealer_points})")
+            lines.append(f"暗牌：🂠")
         else:
+            dealer_hand = format_hand(dealer_cards, hide_second=False)
             dealer_points = G21Logic.calculate_points(dealer_cards)
             lines.append(f"{dealer_hand} (点数：{dealer_points})")
         
@@ -540,15 +544,28 @@ class ActionPhaseController:
     
     async def send_dealer_private_message(self, client: Client):
         """给庄家发送私聊消息显示完整手牌"""
-        dealer_hand = format_hand(self.session.dealer_cards, hide_second=False)
         dealer_points = G21Logic.calculate_points(self.session.dealer_cards)
         
-        message_text = (
-            f"🎩 **您的手牌（庄家视角）**\n\n"
-            f"手牌：{dealer_hand}\n"
-            f"点数：**{dealer_points}**\n\n"
-            f"💡 请在群组中点击按钮进行操作"
-        )
+        # 构建手牌显示
+        if len(self.session.dealer_cards) >= 2:
+            bright_card = self.session.dealer_cards[0]  # 明牌
+            hidden_cards = self.session.dealer_cards[1:]  # 暗牌
+            
+            message_text = (
+                f"🎩 **您的手牌（庄家视角）**\n\n"
+                f"明牌：{bright_card}\n"
+                f"暗牌：{' '.join(hidden_cards)}\n"
+                f"总点数：**{dealer_points}**\n\n"
+                f"💡 请在群组中点击按钮进行操作"
+            )
+        else:
+            # 只有一张牌的情况（理论上不应该发生）
+            message_text = (
+                f"🎩 **您的手牌（庄家视角）**\n\n"
+                f"手牌：{' '.join(self.session.dealer_cards)}\n"
+                f"点数：**{dealer_points}**\n\n"
+                f"💡 请在群组中点击按钮进行操作"
+            )
         
         try:
             await client.send_message(self.session.dealer_user_id, message_text)
@@ -970,6 +987,10 @@ async def handle_dealer_hit_callback(client: Client, call: CallbackQuery):
         if session.dealer_user_id != user_id:
             return await call.answer("❌ 只有庄家可以操作", show_alert=True)
         
+        # 检查庄家是否已完成操作
+        if session.dealer_state != PlayerState.PLAYING:
+            return await call.answer("您已完成操作，无法继续要牌", show_alert=True)
+        
         action_controller = ActionPhaseController(session)
         result = await action_controller.handle_dealer_hit()
         await call.answer(result['message'], show_alert=False)
@@ -1001,6 +1022,10 @@ async def handle_dealer_stand_callback(client: Client, call: CallbackQuery):
         
         if session.dealer_user_id != user_id:
             return await call.answer("❌ 只有庄家可以操作", show_alert=True)
+        
+        # 检查庄家是否已完成操作
+        if session.dealer_state != PlayerState.PLAYING:
+            return await call.answer("您已完成操作", show_alert=True)
         
         action_controller = ActionPhaseController(session)
         result = await action_controller.handle_dealer_stand()
