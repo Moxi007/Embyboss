@@ -4,10 +4,6 @@ import contextlib
 
 from .func_helper.logger_config import logu, Now
 
-import pyrogram.utils
-pyrogram.utils.MIN_CHANNEL_ID = -1009999999999
-pyrogram.utils.MIN_CHAT_ID = -999999999999
-
 LOGGER = logu(__name__)
 
 from .schemas import Config

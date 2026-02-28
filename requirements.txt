@@ -1,5 +1,5 @@
 ﻿PyMySQL~=1.0.3
-Pyrogram~=2.0.106
+Kurigram~=2.2.19
 pyromod~=3.1.6
 TgCrypto~=1.2.5
 uvloop~=0.17.0
