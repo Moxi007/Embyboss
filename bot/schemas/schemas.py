@@ -1,6 +1,6 @@
 import json
 import os
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 from typing import List, Optional, Union
 
 # 嵌套式的数据设计，规范数据 config.json
@@ -241,10 +241,18 @@ class Config(BaseModel):
     api: API = Field(default_factory=API)
     game: Game = Field(default_factory=Game)
 
+    # 用于追踪 config.json 文件的修改时间戳，自动检测外部编辑（Pydantic v2 PrivateAttr）
+    _config_mtime: float = PrivateAttr(default=0.0)
+
     def __init__(self, **data):
         super().__init__(**data)
         if self.owner in self.admins:
             self.admins.remove(self.owner)
+        # 记录初始化时的文件修改时间
+        try:
+            self._config_mtime = os.path.getmtime("config.json")
+        except OSError:
+            pass
 
     @classmethod
     def load_config(cls):
@@ -255,6 +263,41 @@ class Config(BaseModel):
     def save_config(self):
         with open("config.json", "w", encoding="utf-8") as f:
             json.dump(self.model_dump(), f, indent=4, ensure_ascii=False)
+        # 保存后更新 mtime，避免自己写的变更触发重载
+        try:
+            self._config_mtime = os.path.getmtime("config.json")
+        except OSError:
+            pass
+
+    def reload_from_file(self) -> bool:
+        """
+        从磁盘重新读取 config.json 并原地更新当前对象的所有属性。
+        返回 True 表示发现变更并已重载，False 表示无变更。
+        保持同一个 config 对象引用不变，所有代码里的 config.xxx 立即生效。
+        """
+        try:
+            current_mtime = os.path.getmtime("config.json")
+        except OSError:
+            return False
+
+        if current_mtime <= self._config_mtime:
+            return False  # 文件没有变化
+
+        try:
+            with open("config.json", "r", encoding="utf-8") as f:
+                new_data = json.load(f)
+
+            # 用新数据构建一个临时的 Config 对象来验证格式
+            new_config = Config(**new_data)
+
+            # 原地更新当前对象的所有字段
+            for field_name in self.model_fields:
+                setattr(self, field_name, getattr(new_config, field_name))
+
+            self._config_mtime = current_mtime
+            return True
+        except Exception:
+            return False
 
 
 class Yulv(BaseModel):

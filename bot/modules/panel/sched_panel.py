@@ -64,6 +64,15 @@ def set_all_sche():
 set_all_sche()
 
 
+# 配置文件自动热重载监控（每10秒检查一次 config.json 是否被外部修改）
+async def _config_file_watcher():
+    """自动检测 config.json 文件变化并热重载"""
+    if config.reload_from_file():
+        LOGGER.info("【热重载】检测到 config.json 变更，已自动重载配置")
+
+scheduler.add_job(_config_file_watcher, 'interval', seconds=10, id='config_file_watcher')
+
+
 async def sched_panel(_, msg):
     # await deleteMessage(msg)
     await editMessage(msg,
