@@ -38,6 +38,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # 复制项目代码
 COPY . .
+# 赋予运行权限
+RUN chmod +x start.sh
+
 # 设置启动命令
-ENTRYPOINT [ "python3" ]
-CMD [ "main.py" ]
+ENTRYPOINT ["/bin/sh"]
+CMD ["start.sh"]

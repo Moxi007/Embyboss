@@ -239,7 +239,14 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
                     config.auto_update.commit_sha = latest_commit
                     config.auto_update.up_description = up_description
                     save_config()
-                    os.execl(executable, executable, *argv)
+                    
+                    # 强力重置并依托外部守护进程（Docker/Systemd）拉起
+                    try:
+                        os.execl(executable, executable, *argv)
+                    except Exception as e:
+                        LOGGER.error(f"execl 模块重载失败: {e}，尝试使用 exit(1) 依托外部守护进程重启")
+                        import sys
+                        sys.exit(1)
                 else:
                     message = "【AutoUpdate_Bot】运行成功，未检测到更新，结束"
                     await bot.send_message(chat_id=config.group[0], text=message) if not msg else await msg.edit(message)
