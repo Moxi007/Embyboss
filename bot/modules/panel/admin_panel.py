@@ -349,11 +349,9 @@ async def buy_mon(_, call):
     await call.answer('✅ 显示注册码')
     cd, times, u = call.data.split('_')
     n = getattr(ExDate(), times)
-    a, i = await sql_count_p_code(u, n)
-    if a is None:
+    x, i = await sql_count_p_code(u, n, 1)
+    if x is None:
         x = '**空**'
-    else:
-        x = a[0]
     first = await bot.get_chat(u)
     keyboard = await cr_paginate(i, 1, n)
     await sendMessage(call, f'🔎当前 {first.first_name} - **{n}**天，检索出以下 **{i}**页：\n\n{x}', keyboard)
@@ -364,9 +362,8 @@ async def buy_mon(_, call):
 async def paginate_keyboard(_, call):
     j, mode = map(int, call.data.split(":")[1].split('_'))
     await callAnswer(call, f'好的，将为您翻到第 {j} 页')
-    a, b = await sql_count_p_code(call.from_user.id, mode)
+    text, b = await sql_count_p_code(call.from_user.id, mode, j)
     keyboard = await cr_paginate(b, j, mode)
-    text = a[j-1]
     await editMessage(call, f'🔎当前模式- **{mode}**天，检索出以下 **{b}**页链接：\n\n{text}', keyboard)
 
 

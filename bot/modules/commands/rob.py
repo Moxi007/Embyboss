@@ -79,10 +79,10 @@ async def countdown(call, rob_message):
     while True:
         await asyncio.sleep(60)
         if rob_message.id in rob_games:
-            config.game = rob_games[rob_message.id]
-            config.game['remaining_time'] -= 1
-            await update_edit_message(call, config.game)
-            if config.game['remaining_time'] <= 0:
+            game_data = rob_games[rob_message.id]
+            game_data['remaining_time'] -= 1
+            await update_edit_message(call, game_data)
+            if game_data['remaining_time'] <= 0:
                  break
         else:
             break
@@ -164,8 +164,8 @@ async def start_rob(message, user, target_user):
 
 async def show_onlooker_message(call, game):
     onlookers_messages = ["· 📺 围观群众"]
-    if config.game['kanxi_list']:
-        for kanxi_id in config.game['kanxi_list']:
+    if game_data['kanxi_list']:
+        for kanxi_id in game_data['kanxi_list']:
             name = await get_fullname_with_link(kanxi_id)
             possible_messages = [
                 f"· {name} 纷纷说道：这都啥……",
@@ -184,21 +184,21 @@ async def show_onlooker_message(call, game):
             onlookers_messages.append(selected_message)
 
     reward_message = "\n".join(onlookers_messages)
-    reward_msg = await bot.send_message(config.game['chat_id'], reward_message, reply_to_message_id=config.game['rob_msg_id'])
+    reward_msg = await bot.send_message(game_data['chat_id'], reward_message, reply_to_message_id=game_data['rob_msg_id'])
     asyncio.create_task(deleteMessage(reward_msg, 180))
 
 async def update_edit_message(call, game, status=None):
-    user_with_link = await get_fullname_with_link(config.game['user_id'])
-    target_with_link = await get_fullname_with_link(config.game['target_user_id'])
-    user_score = '等待投点' if config.game['round_time'] == 0 else str(config.game['user_score']) + ' 分'
-    target_score = '等待投点' if config.game['round_time'] == 0 else str(config.game['target_score']) + ' 分'
+    user_with_link = await get_fullname_with_link(game_data['user_id'])
+    target_with_link = await get_fullname_with_link(game_data['target_user_id'])
+    user_score = '等待投点' if game_data['round_time'] == 0 else str(game_data['user_score']) + ' 分'
+    target_score = '等待投点' if game_data['round_time'] == 0 else str(game_data['target_score']) + ' 分'
     update_text = (
         f"· 【抢劫事件】\n\n"
         f"· 🥷 委托雇主 | {user_with_link}\n"
         f"· ⚔️ 抢劫对象 | {target_with_link}\n"
-        f"· 💵 劫掠金额 | {config.game['rob_gold']}\n"
-        f"· ⏳ 剩余时间 | {config.game['remaining_time']} 分钟\n"
-        f"· 🔥 战斗回合 | ROUND {config.game['round_time']}\n\n"
+        f"· 💵 劫掠金额 | {game_data['rob_gold']}\n"
+        f"· ⏳ 剩余时间 | {game_data['remaining_time']} 分钟\n"
+        f"· 🔥 战斗回合 | ROUND {game_data['round_time']}\n\n"
         f"· 🧨 乱世的盗贼 : {user_score}\n"
         f"· VS\n"
         f"· 🛡️ {target_with_link} : {target_score}\n\n"
@@ -206,20 +206,20 @@ async def update_edit_message(call, game, status=None):
 
     if status == 'surrender':
         update_text += f"· 🎫 最终结果 | {user_with_link} 获胜！\n"
-        user = await sql_get_emby(config.game['user_id'])
-        target_user = await sql_get_emby(config.game['target_user_id'])
+        user = await sql_get_emby(game_data['user_id'])
+        target_user = await sql_get_emby(game_data['target_user_id'])
         
-        if target_user.iv < config.game['rob_gold']:
+        if target_user.iv < game_data['rob_gold']:
             rob_gold = to_int(target_user.iv / 2)
         else:
-            rob_gold = to_int(config.game['rob_gold'])
+            rob_gold = to_int(game_data['rob_gold'])
             
         actual_rob_gold = min(rob_gold, target_user.iv)
         
-        await change_emby_amount(config.game['target_user_id'], target_user.iv - actual_rob_gold)
-        await change_emby_amount(config.game['user_id'], user.iv + actual_rob_gold)
+        await change_emby_amount(game_data['target_user_id'], target_user.iv - actual_rob_gold)
+        await change_emby_amount(game_data['user_id'], user.iv + actual_rob_gold)
 
-        await editMessage(config.game['original_message'], update_text)
+        await editMessage(game_data['original_message'], update_text)
         answer = f"🎉 对方投降了\n\n对方选择投降，乱世盗贼不战而胜\n获得：{actual_rob_gold} {config.money}\n余额：{user.iv + actual_rob_gold} {config.money}"
 
         await bot.send_message(user.tg, answer, reply_to_message_id=call.message.id)
@@ -227,17 +227,17 @@ async def update_edit_message(call, game, status=None):
         target_answer = f"😌 你投降了\n\n您向 {user_with_link} 的乱世盗贼投降\n割地赔款：{actual_rob_gold} {config.money}\n余额： {target_user.iv - actual_rob_gold} {config.money}️"
         await bot.send_message(target_user.tg, target_answer, reply_to_message_id=call.message.id)
 
-        del rob_games[config.game['rob_msg_id']]
+        del rob_games[game_data['rob_msg_id']]
         return
 
-    if config.game['remaining_time'] <= 0:
+    if game_data['remaining_time'] <= 0:
         buttons = []
-        user = await sql_get_emby(config.game['user_id'])
-        target_user = await sql_get_emby(config.game['target_user_id'])
+        user = await sql_get_emby(game_data['user_id'])
+        target_user = await sql_get_emby(game_data['target_user_id'])
         
-        if config.game['round_time'] == 0:
+        if game_data['round_time'] == 0:
             update_text += f"· 🎫 最终结果 | {target_with_link} 不在家！\n"
-            await editMessage(config.game['original_message'], update_text, buttons)
+            await editMessage(game_data['original_message'], update_text, buttons)
             
             not_answer = f"{target_with_link} 没在家，乱世的盗贼白忙一场，{user_with_link} 只能眼睁睁看着佣金 💸 打水漂，啥也没捞到 🤡"
             no_answer_msg = await bot.send_message(call.chat.id, not_answer, reply_to_message_id=call.id)
@@ -254,17 +254,17 @@ async def update_edit_message(call, game, status=None):
                 reply_to_message_id=call.id
             )
 
-            await show_onlooker_message(call, config.game)
-            asyncio.create_task(deleteMessage(config.game['original_message'], 180))
+            await show_onlooker_message(call, game_data)
+            asyncio.create_task(deleteMessage(game_data['original_message'], 180))
             asyncio.create_task(deleteMessage(no_answer_msg, 180))
             
         else:
             update_text += f"· 🎫 最终结果 | 时间到！按当前比分决定胜负\n"
-            await editMessage(config.game['original_message'], update_text, buttons)
+            await editMessage(game_data['original_message'], update_text, buttons)
             
             if config.game["target_score"] > config.game["user_score"]:
                 actual_penalty = min(user.iv, FIGHT_PENALTY)
-                message = f"⏰ 时间到！{target_with_link} 以 {config.game['target_score']} : {config.game['user_score']} 获胜🏆\n{user_with_link} 失去 {actual_penalty} {config.money}😭"
+                message = f"⏰ 时间到！{target_with_link} 以 {game_data['target_score']} : {game_data['user_score']} 获胜🏆\n{user_with_link} 失去 {actual_penalty} {config.money}😭"
                 success_msg = await bot.send_message(call.chat.id, message, reply_to_message_id=call.id)
                 asyncio.create_task(deleteMessage(success_msg, 180))
                 
@@ -282,12 +282,12 @@ async def update_edit_message(call, game, status=None):
                     reply_to_message_id=call.id)
                     
             elif config.game["target_score"] < config.game["user_score"]:
-                if target_user.iv < config.game['rob_gold']:
+                if target_user.iv < game_data['rob_gold']:
                     rob_gold = target_user.iv
                 else:
-                    rob_gold = to_int(config.game['rob_gold'])
+                    rob_gold = to_int(game_data['rob_gold'])
                 
-                message = f"⏰ 时间到！{user_with_link} 以 {config.game['user_score']} : {config.game['target_score']} 获胜🏆\n{target_with_link} 损失 {rob_gold} {config.money}😭"
+                message = f"⏰ 时间到！{user_with_link} 以 {game_data['user_score']} : {game_data['target_score']} 获胜🏆\n{target_with_link} 损失 {rob_gold} {config.money}😭"
                 
                 await bot.send_message(
                     user.tg,
@@ -307,7 +307,7 @@ async def update_edit_message(call, game, status=None):
                 asyncio.create_task(deleteMessage(rob_msg, 180))
                 
             else:
-                message = f"⏰ 时间到！双方 {config.game['user_score']} : {config.game['target_score']} 打平了，乱世的盗贼跑路了，{user_with_link} 痛失佣金 💸"
+                message = f"⏰ 时间到！双方 {game_data['user_score']} : {game_data['target_score']} 打平了，乱世的盗贼跑路了，{user_with_link} 痛失佣金 💸"
                 rob_msg = await bot.send_message(call.chat.id, message, reply_to_message_id=call.id)
                 asyncio.create_task(deleteMessage(rob_msg, 180))
                 
@@ -322,17 +322,17 @@ async def update_edit_message(call, game, status=None):
                     reply_to_message_id=call.id
                 )
             
-            asyncio.create_task(handle_kanxi_rewards(config.game))
+            asyncio.create_task(handle_kanxi_rewards(game_data))
             asyncio.create_task(deleteMessage(call, 180))
         
-        del rob_games[config.game['rob_msg_id']]
+        del rob_games[game_data['rob_msg_id']]
     else:
-        if config.game['round_time'] < 3:
-            buttons = get_buttons(config.game)
-            update_text += f"· 📺 围观群众:\n{config.game['kanxi_name']}"
-            await editMessage(config.game['original_message'], update_text, buttons)
+        if game_data['round_time'] < 3:
+            buttons = get_buttons(game_data)
+            update_text += f"· 📺 围观群众:\n{game_data['kanxi_name']}"
+            await editMessage(game_data['original_message'], update_text, buttons)
         else:
-            await editMessage(config.game['original_message'], update_text)
+            await editMessage(game_data['original_message'], update_text)
 
 def get_buttons(game):
     flee_button = InlineKeyboardButton(
@@ -348,11 +348,11 @@ def get_buttons(game):
     return InlineKeyboardMarkup([[flee_button, fight_button], [kanxi_button]])
 
 async def onlookers(call):
-    config.game = rob_games[call.message.id]
+    game_data = rob_games[call.message.id]
     if call.from_user.id != int(call.data.split("_")[4]):
         kanxi_id = call.from_user.id
-        if kanxi_id not in config.game['kanxi_list']:
-            config.game['kanxi_list'].append(kanxi_id)
+        if kanxi_id not in game_data['kanxi_list']:
+            game_data['kanxi_list'].append(kanxi_id)
             name_ = await get_fullname_with_link(kanxi_id)
 
             funny_watch_lines = [
@@ -366,15 +366,15 @@ async def onlookers(call):
             ]
             funny_line = random.choice(funny_watch_lines)
 
-            config.game['kanxi_name'] += funny_line + "\n"
-            await update_edit_message(call, config.game)
+            game_data['kanxi_name'] += funny_line + "\n"
+            await update_edit_message(call, game_data)
         else:
             await call.answer("❌ 您已经在围观了！", show_alert=False)
     else:
         await call.answer("❌ 您已经被盯上了！", show_alert=False)
 
 async def surrender(call, game_id):
-    config.game = rob_games.get(game_id)
+    game_data = rob_games.get(game_id)
     if config.game is None:
         await call.answer("❌ 这个抢劫已经无效。", show_alert=True)
         return
@@ -390,7 +390,7 @@ async def surrender(call, game_id):
         await call.answer("❌ 您只是围观群众！", show_alert=False)
 
 async def fighting(call, game_id):
-    config.game = rob_games.get(game_id)
+    game_data = rob_games.get(game_id)
     if config.game is None:
         await call.answer("❌ 这个抢劫已经无效。", show_alert=True)
         return
@@ -400,18 +400,18 @@ async def fighting(call, game_id):
         if config.game["round_time"] < 3:
             config.game["round_time"] += 1
             config.game["user_score"] += random.randint(0, 7)
-            config.game['target_score'] += random.randint(0, 6)
+            game_data['target_score'] += random.randint(0, 6)
 
             target_with_link = await get_fullname_with_link(int(call.data.split("_")[4]))
             user_with_link = await get_fullname_with_link(int(call.data.split("_")[3]))
-            await update_edit_message(call, config.game)
+            await update_edit_message(call, game_data)
             if config.game["round_time"] >= 3:
                 user = await sql_get_emby(int(call.data.split("_")[3]))
                 target_user = await sql_get_emby(int(call.data.split("_")[4]))
 
                 if config.game["target_score"] > config.game["user_score"]:
                     actual_penalty = min(user.iv, FIGHT_PENALTY)
-                    message = f"{target_with_link} 以 {config.game['target_score']} : {config.game['user_score']} 击败了乱世的盗贼\n{target_with_link} 最终赢得了斗争🏆\n{user_with_link} 失去 {actual_penalty} {config.money}😭"
+                    message = f"{target_with_link} 以 {game_data['target_score']} : {game_data['user_score']} 击败了乱世的盗贼\n{target_with_link} 最终赢得了斗争🏆\n{user_with_link} 失去 {actual_penalty} {config.money}😭"
                     success_msg = await bot.send_message(call.message.chat.id, message, reply_to_message_id=call.message.id)
                     asyncio.create_task(deleteMessage(success_msg, 180))
                     
@@ -429,21 +429,21 @@ async def fighting(call, game_id):
                         reply_to_message_id=call.message.id)
                         
                 elif config.game["target_score"] < config.game["user_score"]:
-                    if target_user.iv < config.game['rob_gold']:
+                    if target_user.iv < game_data['rob_gold']:
                         rob_gold = target_user.iv
-                        message = f"乱世的盗贼以 {config.game['user_score']} : {config.game['target_score']} 抢劫成功\n{target_with_link} 是个穷鬼全被抢走了🤡\n{user_with_link} 穷鬼也不放过抢走 {rob_gold} {config.money}🏆"
+                        message = f"乱世的盗贼以 {game_data['user_score']} : {game_data['target_score']} 抢劫成功\n{target_with_link} 是个穷鬼全被抢走了🤡\n{user_with_link} 穷鬼也不放过抢走 {rob_gold} {config.money}🏆"
                     else:
-                        rob_gold = to_int(config.game['rob_gold'])
-                        message = f"乱世的盗贼以 {config.game['user_score']} : {config.game['target_score']} 抢劫成功\n{target_with_link} 最终反抗失败🤡\n{user_with_link} 抢走 {rob_gold} {config.money}🏆"
+                        rob_gold = to_int(game_data['rob_gold'])
+                        message = f"乱世的盗贼以 {game_data['user_score']} : {game_data['target_score']} 抢劫成功\n{target_with_link} 最终反抗失败🤡\n{user_with_link} 抢走 {rob_gold} {config.money}🏆"
                     
                     await bot.send_message(
                         user.tg,
-                        f"🎉 抢劫成功\n\n乱世的盗贼以 {config.game['user_score']} : {config.game['target_score']} 抢劫成功\n获得：{rob_gold} {config.money}\n余额：{user.iv + rob_gold} {config.money}",
+                        f"🎉 抢劫成功\n\n乱世的盗贼以 {game_data['user_score']} : {game_data['target_score']} 抢劫成功\n获得：{rob_gold} {config.money}\n余额：{user.iv + rob_gold} {config.money}",
                         reply_to_message_id=call.message.id
                     )
                     await bot.send_message(
                         target_user.tg,
-                        f"😌 防守失败\n\n你以 {config.game['target_score']} : {config.game['user_score']} 败给了乱世的盗贼\n损失：{rob_gold} {config.money}\n余额：{target_user.iv - rob_gold} {config.money}",
+                        f"😌 防守失败\n\n你以 {game_data['target_score']} : {game_data['user_score']} 败给了乱世的盗贼\n损失：{rob_gold} {config.money}\n余额：{target_user.iv - rob_gold} {config.money}",
                         reply_to_message_id=call.message.id
                     )
 
@@ -468,7 +468,7 @@ async def fighting(call, game_id):
                         reply_to_message_id=call.message.id
                     )
                 
-                asyncio.create_task(handle_kanxi_rewards(config.game))
+                asyncio.create_task(handle_kanxi_rewards(game_data))
                 asyncio.create_task(deleteMessage(call.message, 180))
                 del rob_games[game_id]
     else:

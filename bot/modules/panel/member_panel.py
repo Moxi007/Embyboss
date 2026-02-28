@@ -710,15 +710,15 @@ async def do_store_invite(_, call):
 
 @bot.on_callback_query(filters.regex('store-query'))
 async def do_store_query(_, call):
-    a, b = await sql_count_c_code(tg_id=call.from_user.id)
-    if not a:
-        return await callAnswer(call, '❌ 空', True)
     try:
         number = int(call.data.split(':')[1])
     except (IndexError, KeyError, ValueError):
         number = 1
+    a, b = await sql_count_c_code(tg_id=call.from_user.id, page=number)
+    if not a:
+        return await callAnswer(call, '❌ 空', True)
     await callAnswer(call, '📜 正在翻页')
-    await editMessage(call, text=a[number - 1], buttons=await store_query_page(b, number))
+    await editMessage(call, text=a, buttons=await store_query_page(b, number))
 @bot.on_callback_query(filters.regex('^my_favorites|^page_my_favorites:'))
 async def my_favorite(_, call):
     # 获取页码

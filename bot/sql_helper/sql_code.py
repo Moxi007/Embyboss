@@ -110,7 +110,7 @@ async def sql_count_code(tg: int = None):
                 return None
 
 
-async def sql_count_p_code(tg_id, us):
+async def sql_count_p_code(tg_id, us, page: int = 1):
     async with Session() as session:
         try:
             if us == 0:
@@ -123,100 +123,99 @@ async def sql_count_p_code(tg_id, us):
             if p == 0:
                 return None, 1
             i = math.ceil(p / 30)
-            a = []
-            b = 1
-            # 分析出页数，将检索出 分割p（总数目）的 间隔，将间隔分段，放进【】中返回
-            while b <= i:
-                d = (b - 1) * 30
-                if us == -1:
-                    stmt = (
-                        select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
-                        .filter(Code.used == None)
-                        .filter(Code.tg == tg_id)
-                        .order_by(Code.us.asc())
-                        .limit(30)
-                        .offset(d)
-                    )
-                elif us != 0:
-                    # 查询us和tg匹配的记录，按tg升序，usedtime降序排序，分页查询
-                    stmt = (
-                        select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
-                        .filter(Code.us == us)
-                        .filter(Code.tg == tg_id)
-                        .filter(Code.used == None)
-                        .order_by(Code.tg.asc(), Code.usedtime.desc())
-                        .limit(30)
-                        .offset(d)
+            
+            if page < 1:
+                page = 1
+            elif page > i:
+                page = i
+                
+            d = (page - 1) * 30
+            if us == -1:
+                stmt = (
+                    select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
+                    .filter(Code.used == None)
+                    .filter(Code.tg == tg_id)
+                    .order_by(Code.us.asc())
+                    .limit(30)
+                    .offset(d)
+                )
+            elif us != 0:
+                # 查询us和tg匹配的记录，按tg升序，usedtime降序排序，分页查询
+                stmt = (
+                    select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
+                    .filter(Code.us == us)
+                    .filter(Code.tg == tg_id)
+                    .filter(Code.used == None)
+                    .order_by(Code.tg.asc(), Code.usedtime.desc())
+                    .limit(30)
+                    .offset(d)
+                )
+            else:
+                stmt = (
+                    select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
+                    .filter(Code.used != None)
+                    .filter(Code.tg == tg_id)
+                    .order_by(Code.tg.asc(), Code.usedtime.desc())
+                    .limit(30)
+                    .offset(d)
+                )
+            result = await session.execute(stmt)
+            rows = result.all()
+            x = ""
+            e = 1 if d == 0 else d + 1
+            for link in rows:
+                if us == 0:
+                    c = (
+                        f"{e}. `"
+                        + f"{link.code}`"
+                        + f"\n🎁 {link.us}d - [{link.used}](tg://user?id={link.tg})(__{link.usedtime}__)\n"
                     )
                 else:
-                    stmt = (
-                        select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
-                        .filter(Code.used != None)
-                        .filter(Code.tg == tg_id)
-                        .order_by(Code.tg.asc(), Code.usedtime.desc())
-                        .limit(30)
-                        .offset(d)
-                    )
-                result = await session.execute(stmt)
-                rows = result.all()
-                x = ""
-                e = 1 if d == 0 else d + 1
-                for link in rows:
-                    if us == 0:
-                        c = (
-                            f"{e}. `"
-                            + f"{link.code}`"
-                            + f"\n🎁 {link.us}d - [{link.used}](tg://user?id={link.tg})(__{link.usedtime}__)\n"
-                        )
-                    else:
-                        c = f"{e}. `" + f"{link.code}`\n"
-                    x += c
-                    e += 1
-                a.append(x)
-                b += 1
-            # a 是数量，i是页数
-            return a, i
+                    c = f"{e}. `" + f"{link.code}`\n"
+                x += c
+                e += 1
+            return x, i
         except Exception as e:
             # 查询失败时，打印异常信息，并返回None
             print(e)
             return None, 1
 
 
-async def sql_count_c_code(tg_id):
+async def sql_count_c_code(tg_id, page: int = 1):
     async with Session() as session:
         try:
             p = await session.scalar(select(func.count()).filter(Code.tg == tg_id))
             if p == 0:
                 return None, 1
             i = math.ceil(p / 5)
-            a = []
-            b = 1
-            # 分析出页数，将检索出 分割p（总数目）的 间隔，将间隔分段，放进【】中返回
-            while b <= i:
-                d = (b - 1) * 5
-                stmt = (
-                    select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
-                    .filter(Code.tg == tg_id)
-                    .order_by(Code.tg.asc(), Code.usedtime.desc())
-                    .limit(5)
-                    .offset(d)
+            
+            if page < 1:
+                page = 1
+            elif page > i:
+                page = i
+                
+            d = (page - 1) * 5
+            stmt = (
+                select(Code.tg, Code.code, Code.used, Code.usedtime, Code.us)
+                .filter(Code.tg == tg_id)
+                .order_by(Code.tg.asc(), Code.usedtime.desc())
+                .limit(5)
+                .offset(d)
+            )
+            result = await session.execute(stmt)
+            rows = result.all()
+            x = ""
+            e = 1 if d == 0 else d + 1
+            for link in rows:
+                c = (
+                    f"{e}. `{link.code}`\n"
+                    f"🎁： {link.us} 天 | 👤[{link.used}](tg://user?id={link.used})\n"
+                    f"🌏：{link.usedtime}\n\n"
                 )
-                result = await session.execute(stmt)
-                rows = result.all()
-                x = ""
-                e = 1 if d == 0 else d + 1
-                for link in rows:
-                    c = (
-                        f"{e}. `{link.code}`\n"
-                        f"🎁： {link.us} 天 | 👤[{link.used}](tg://user?id={link.used})\n"
-                        f"🌏：{link.usedtime}\n\n"
-                    )
-                    x += c
-                    e += 1
-                a.append(x)
-                b += 1
-            # a 是数量，i是页数
-            return a, i
+                x += c
+                e += 1
+            # x 是当前页内容，i是总页数
+            return x, i
         except Exception as e:
             # 查询失败时，打印异常信息，并返回None
             print(e)
