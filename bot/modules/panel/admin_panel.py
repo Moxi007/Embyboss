@@ -5,6 +5,7 @@
 import asyncio
 
 from pyrogram import filters
+from pyrogram.errors import PeerIdInvalid
 
 from bot import LOGGER, bot, config, save_config
 from bot.func_helper.filters import admins_on_filter
@@ -280,10 +281,18 @@ async def ch_link(_, call):
     ls = []
     config.admins.append(config.owner)
     for i in config.admins:
-        name = await bot.get_chat(i)
+        try:
+            name = await bot.get_chat(i)
+            first_name = name.first_name
+        except PeerIdInvalid:
+            first_name = f"未缓存的用户({i})"
+        except Exception as e:
+            first_name = f"无名氏({i})"
+            LOGGER.error(f"Failed to fetch admin name for {i}: {e}")
+            
         a, b, c, d, f ,e= await sql_count_code(i)
-        text += f'\n👮🏻`{name.first_name}`: 月/{b}，季/{c}，半年/{d}，年/{f}，已用/{a}，未用/{e}'
-        f = [f"🔎 {name.first_name}", f"ch_admin_link-{i}"]
+        text += f'\n👮🏻`{first_name}`: 月/{b}，季/{c}，半年/{d}，年/{f}，已用/{a}，未用/{e}'
+        f = [f"🔎 {first_name}", f"ch_admin_link-{i}"]
         ls.append(f)
     ls.append(["🚮 删除未使用码", f"delete_codes"])
     config.admins.remove(config.owner)
@@ -330,15 +339,22 @@ async def delete_unused_codes(_, call):
     await editMessage(call, text, buttons=keyboard)
 
 
-@bot.on_callback_query(filters.regex('ch_admin_link'))
+# 详细查询
+@bot.on_callback_query(filters.regex('ch_admin_link') & admins_on_filter)
 async def ch_admin_link(client, call):
+    await callAnswer(call, '🔍 详细记录')
     i = int(call.data.split('-')[1])
-    if call.from_user.id != config.owner and call.from_user.id != i:
-        return await callAnswer(call, '🚫 你怎么偷窥别人呀! 你又不是owner', True)
-    await callAnswer(call, f'💫 管理员 {i} 的注册码')
-    a, b, c, d, f, e= await sql_count_code(i)
-    name = await client.get_chat(i)
-    text = f'**🎫 [{name.first_name}-{i}](tg://user?id={i})：\n• 已使用 - {a}  | • 未使用 - {e}\n• 月码 - {b}    | • 季码 - {c} \n• 半年码 - {d}  | • 年码 - {f}**'
+    a, b, c, d, f, e = await sql_count_code(i)
+    try:
+        name = await client.get_chat(i)
+        first_name = name.first_name
+    except PeerIdInvalid:
+        first_name = f"未缓存的用户({i})"
+    except Exception as e:
+        first_name = f"无名氏({i})"
+        LOGGER.error(f"Failed to fetch admin name for {i}: {e}")
+        
+    text = f'**🎫 [{first_name}-{i}](tg://user?id={i})：\n• 已使用 - {a}  | • 未使用 - {e}\n• 月码 - {b}    | • 季码 - {c} \n• 半年码 - {d}  | • 年码 - {f}**'
     await editMessage(call, text, date_ikb(i))
 
 
@@ -352,9 +368,16 @@ async def buy_mon(_, call):
     x, i = await sql_count_p_code(u, n, 1)
     if x is None:
         x = '**空**'
-    first = await bot.get_chat(u)
+    try:
+        first = await bot.get_chat(u)
+        first_name = first.first_name
+    except PeerIdInvalid:
+        first_name = f"未知主理人({u})"
+    except Exception as e:
+        first_name = f"无名氏({u})"
+        
     keyboard = await cr_paginate(i, 1, n)
-    await sendMessage(call, f'🔎当前 {first.first_name} - **{n}**天，检索出以下 **{i}**页：\n\n{x}', keyboard)
+    await sendMessage(call, f'🔎当前 {first_name} - **{n}**天，检索出以下 **{i}**页：\n\n{x}', keyboard)
 
 
 # 检索翻页
