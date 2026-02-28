@@ -213,7 +213,7 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
     """
     # print("update")
     if not auto_update.status and not manual: return
-    commit_url = f"https://api.github.com/repos/{auto_update.git_repo}/commits?per_page=1"
+    commit_url = f"https://api.github.com/repos/{auto_update.git_repo}/commits?sha=beta&per_page=1"
     async with aiohttp.ClientSession() as session:
         async with session.get(commit_url) as resp:
             if resp.status == 200:
@@ -223,8 +223,8 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
                     up_description = data[0]["commit"]["message"]
                     await execute("git fetch --all")
                     if force:  # 默认不重置，保留本地更改
-                        await execute("git reset --hard origin/master")
-                    await execute("git pull --all")
+                        await execute("git reset --hard origin/beta")
+                    await execute("git pull origin beta")
                     # await execute(f"{executable} -m pip install --upgrade -r requirements.txt")
                     await execute(f"{executable} -m pip install  -r requirements.txt")
                     text = '【AutoUpdate_Bot】运行成功，已更新bot代码。重启bot中...'
