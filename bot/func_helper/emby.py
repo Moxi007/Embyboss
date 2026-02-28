@@ -92,21 +92,33 @@ class Embyservice(metaclass=Singleton):
     提供统一的异步HTTP请求、错误处理、重试机制和资源管理
     """
 
-    def __init__(self, url: str, api_key: str, timeout: int = 10, max_retries: int = 1):
+    def __init__(self, timeout: int = 10, max_retries: int = 1):
         """
         初始化 Emby 服务
-        :param url: Emby 服务器地址
-        :param api_key: API 密钥
         :param timeout: 请求超时时间（秒）
         :param max_retries: 最大重试次数
         """
-        self.url = url.rstrip('/')
-        self.api_key = api_key
         self.max_retries = max_retries
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._session_lock = asyncio.Lock()
+        
+        # 限制 Emby 账户创建并发数，保护 SQLite 数据库
+        self._create_semaphore = asyncio.Semaphore(1)
+
+    @property
+    def url(self):
+        return config.emby_url.rstrip('/')
+
+    @property
+    def api_key(self):
+        return config.emby_api
+
+    @property
+    def headers(self):
         # 请求头配置
-        self.headers = {
+        return {
             'accept': 'application/json',
             'content-type': 'application/json',
             'X-Emby-Token': self.api_key,
@@ -115,12 +127,6 @@ class Embyservice(metaclass=Singleton):
             'X-Emby-Client-Version': '1.0.0',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.82'
         }
-        
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._session_lock = asyncio.Lock()
-        
-        # 限制 Emby 账户创建并发数，保护 SQLite 数据库
-        self._create_semaphore = asyncio.Semaphore(1)
 
     @asynccontextmanager
     async def session(self):
@@ -137,7 +143,6 @@ class Embyservice(metaclass=Singleton):
                     enable_cleanup_closed=True
                 )
                 self._session = aiohttp.ClientSession(
-                    headers=self.headers,
                     timeout=self.timeout,
                     connector=connector,
                     raise_for_status=False  # 手动处理HTTP状态码
@@ -166,10 +171,14 @@ class Embyservice(metaclass=Singleton):
         """
         url = f"{self.url}{endpoint}"
         
+        # 动态合并最新配置请求头
+        request_headers = kwargs.pop('headers', {})
+        final_headers = {**self.headers, **request_headers}
+        
         for attempt in range(self.max_retries):
             try:
                 async with self.session() as session:
-                    async with session.request(method, url, **kwargs) as response:
+                    async with session.request(method, url, headers=final_headers, **kwargs) as response:
                         # 检查HTTP状态码
                         if response.status in [200, 204]:
                             # 处理不同的响应类型
@@ -1469,4 +1478,4 @@ class Embyservice(metaclass=Singleton):
 
 
 # 创建全局实例
-emby = Embyservice(config.emby_url, config.emby_api)
+emby = Embyservice()
