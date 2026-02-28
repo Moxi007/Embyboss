@@ -12,7 +12,7 @@ import math
 async def list_whitelist(_, call):
     await callAnswer(call, '🔍 白名单用户列表')
     page = 1
-    whitelist_users = get_all_emby(Emby.lv == 'a')
+    whitelist_users = await get_all_emby(Emby.lv == 'a')
     total_users = len(whitelist_users)
     total_pages = math.ceil(total_users / 20)
 
@@ -24,7 +24,7 @@ async def list_whitelist(_, call):
 async def list_normaluser(_, call):
     await callAnswer(call, '🔍 普通用户列表')
     page = 1
-    normal_users = get_all_emby(Emby.lv == 'b')
+    normal_users = await get_all_emby(Emby.lv == 'b')
     total_users = len(normal_users)
     total_pages = math.ceil(total_users / 20)
 
@@ -37,7 +37,7 @@ async def list_normaluser(_, call):
 async def whitelist_page(_, call):
     page = int(call.data.split(':')[1])
     await callAnswer(call, f'🔍 打开第{page}页')
-    whitelist_users = get_all_emby(Emby.lv == 'a')
+    whitelist_users = await get_all_emby(Emby.lv == 'a')
     total_users = len(whitelist_users)
     total_pages = math.ceil(total_users / 20)
 
@@ -50,7 +50,7 @@ async def whitelist_page(_, call):
 async def normaluser_page(_, call):
     page = int(call.data.split(':')[1])
     await callAnswer(call, f'🔍 打开第{page}页')
-    normal_users = get_all_emby(Emby.lv == 'b')
+    normal_users = await get_all_emby(Emby.lv == 'b')
     total_users = len(normal_users)
     total_pages = math.ceil(total_users / 20)
 

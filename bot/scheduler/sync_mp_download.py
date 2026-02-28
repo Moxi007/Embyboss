@@ -11,7 +11,7 @@ async def sync_download_tasks():
         if download_tasks is not None:
             # 更新每个任务的状态
             for task in download_tasks:
-                record = sql_get_request_record_by_download_id(task['download_id'])
+                record = await sql_get_request_record_by_download_id(task['download_id'])
                 if record is None:
                     continue
                 download_id = task['download_id']
@@ -22,7 +22,7 @@ async def sync_download_tasks():
                 # 根据状态更新数据库
                 if download_state == 'downloading':
                     # 正在下载中
-                    sql_update_request_status(
+                    await sql_update_request_status(
                         download_id=download_id,
                         download_state='downloading',
                         progress=progress,
@@ -30,7 +30,7 @@ async def sync_download_tasks():
                     )
                 elif download_state == 'completed':
                     # 下载完成
-                    sql_update_request_status(
+                    await sql_update_request_status(
                         download_id=download_id,
                         download_state='completed',
                         progress=100,
@@ -38,7 +38,7 @@ async def sync_download_tasks():
                     )
                 elif download_state == 'failed':
                     # 下载失败
-                    sql_update_request_status(
+                    await sql_update_request_status(
                         download_id=download_id,
                         download_state='failed',
                         progress=progress,
@@ -46,7 +46,7 @@ async def sync_download_tasks():
                     )
                 elif download_state == 'pending':
                     # 等待下载
-                    sql_update_request_status(
+                    await sql_update_request_status(
                         download_id=download_id,
                         download_state='pending',
                         progress=0,
@@ -54,7 +54,7 @@ async def sync_download_tasks():
                     )
                 download_count += 1
         # 获取需要检查转移状态的记录
-        transfer_tasks = sql_get_request_record_by_transfer_state()
+        transfer_tasks = await sql_get_request_record_by_transfer_state()
         transfer_count = 0
         if transfer_tasks is not None:
             # 检查每个记录的转移状态
@@ -66,7 +66,7 @@ async def sync_download_tasks():
                             await bot.send_message(chat_id=record.tg, text = f"💯恭喜您点播的「{record.request_name}」已成功入库！")
                         except Exception as e:
                             LOGGER.error(f"[MoviePilot] 发送通知到{record.tg}失败: {str(e)}")
-                    sql_update_request_status(
+                    await sql_update_request_status(
                         download_id=record.download_id,
                         transfer_state=transfer_state,
                         download_state='completed',

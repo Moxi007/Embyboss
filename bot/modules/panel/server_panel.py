@@ -14,7 +14,7 @@ from bot.func_helper.msg_utils import callAnswer, editMessage
 
 @bot.on_callback_query(filters.regex('server') & user_in_group_on_filter)
 async def server(_, call):
-    data = sql_get_emby(tg=call.from_user.id)
+    data = await sql_get_emby(tg=call.from_user.id)
     if not data:
         return await editMessage(call, '⚠️ 数据库没有你，请重新 /start录入')
     await callAnswer(call, '🌐查询中...')

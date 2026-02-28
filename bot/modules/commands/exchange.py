@@ -23,7 +23,7 @@ async def rgs_code(_, msg, register_code):
     if _open.stat:
         return await sendMessage(msg, "🤧 自由注册开启下无法使用注册码。")
 
-    data = sql_get_emby(tg=msg.from_user.id)
+    data = await sql_get_emby(tg=msg.from_user.id)
     if not data:
         return await sendMessage(msg, "出错了，不确定您是否有资格使用，请先 /start")
     embyid = data.embyid

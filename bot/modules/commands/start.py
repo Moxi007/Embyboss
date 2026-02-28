@@ -66,9 +66,9 @@ async def p_start(_, msg):
         else:
             await asyncio.gather(sendMessage(msg, '🤺 你也想和bot击剑吗 ?'), msg.delete())
     except (IndexError, TypeError):
-        exist_emby_data = sql_get_emby(msg.from_user.id)
+        exist_emby_data = await sql_get_emby(msg.from_user.id)
         if not exist_emby_data:
-            sql_add_emby(msg.from_user.id)
+            await sql_add_emby(msg.from_user.id)
         data = await members_info(tg=msg.from_user.id)
         if not data:
             return await sendMessage(msg, "❌ 出现错误，请稍后再试")

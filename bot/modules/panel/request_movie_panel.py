@@ -29,7 +29,7 @@ async def download_media(_, call):
     if not moviepilot.status:
         return await callAnswer(call, '❌ 管理员未开启点播功能', True)
 
-    emby_user = sql_get_emby(tg=call.from_user.id)
+    emby_user = await sql_get_emby(tg=call.from_user.id)
     if not emby_user:
         return await editMessage(call, '⚠️ 数据库没有你，请重新 /start录入')
     if emby_user.lv is None or emby_user.lv not in ['a', 'b']:
@@ -187,7 +187,7 @@ def format_resource_info(index, item):
 
 async def handle_resource_selection(call, result):
     while True:
-        emby_user = sql_get_emby(tg=call.from_user.id)
+        emby_user = await sql_get_emby(tg=call.from_user.id)
         msg = await sendPhoto(call, photo=bot_photo, caption="【选择资源编号】：\n请在120s内对我发送你的资源编号，\n退出点 /cancel", send=True, chat_id=call.from_user.id)
         txt = await callListen(call, 120, buttons=re_download_center_ikb)
         if txt is False:
@@ -217,9 +217,9 @@ async def handle_resource_selection(call, result):
                     log = f"【下载任务】：#{call.from_user.id} [{call.from_user.first_name}](tg://user?id={call.from_user.id}) 已成功添加到下载队列，此次消耗 {need_cost}{sakura_b}\n下载ID：{download_id}"
                     download_log = f"{log}\n详情：{result[index-1]['tg_log']}"
                     LOGGER.info(log)
-                    sql_update_emby(Emby.tg == call.from_user.id,
+                    await sql_update_emby(Emby.tg == call.from_user.id,
                                     iv=emby_user.iv - need_cost)
-                    sql_add_request_record(
+                    await sql_add_request_record(
                         call.from_user.id, download_id, result[index-1]['title'], download_log, need_cost)
                     if moviepilot.download_log_chatid:
                         try:
@@ -251,7 +251,7 @@ async def call_rate(_, call):
     if not moviepilot.status:
         return await callAnswer(call, '❌ 管理员未开启点播功能', True)
     await callAnswer(call, '📈 查看点播下载任务')
-    request_record, has_prev, has_next = sql_get_request_record_by_tg(
+    request_record, has_prev, has_next = await sql_get_request_record_by_tg(
         call.from_user.id)
     if request_record is None:
         return await editMessage(call, '🤷‍♂️ 您还没有点播记录，快去点播吧', buttons=re_download_center_ikb)
@@ -267,7 +267,7 @@ async def request_record_prev(_, call):
     page = user_data[call.from_user.id]['request_record_page'] - 1
     if page <= 0:
         page = 1
-    request_record, has_prev, has_next = sql_get_request_record_by_tg(
+    request_record, has_prev, has_next = await sql_get_request_record_by_tg(
         call.from_user.id, page=page)
     user_data[call.from_user.id]['request_record_page'] = page
     text = get_request_record_text(request_record)
@@ -279,7 +279,7 @@ async def request_record_next(_, call):
     if user_data.get(call.from_user.id) is None:
         user_data[call.from_user.id] = {'request_record_page': 1}
     page = user_data[call.from_user.id]['request_record_page'] + 1
-    request_record, has_prev, has_next = sql_get_request_record_by_tg(
+    request_record, has_prev, has_next = await sql_get_request_record_by_tg(
         call.from_user.id, page=page)
     user_data[call.from_user.id]['request_record_page'] = page
     text = get_request_record_text(request_record)

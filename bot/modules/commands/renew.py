@@ -27,10 +27,10 @@ async def get_user_input(msg):
         except (IndexError, KeyError, BadRequest, ValueError, AttributeError):
             return None, None, None, None
 
-    e = sql_get_emby(tg=b)
+    e = await sql_get_emby(tg=b)
     stats = None
     if not e:
-        e2 = sql_get_emby2(name=b)
+        e2 = await sql_get_emby2(name=b)
         if not e2:
             await sendMessage(msg, f"♻️ 未检索到Emby {b}，请确认重试或手动检查。")
             return None, None, None, None
@@ -71,9 +71,9 @@ async def renew_user(_, msg):
 
     if stats == 1:
         expired = 1 if lv == 'c' else 0
-        sql_update_emby2(Emby2.embyid == e.embyid, ex=ex_new, expired=expired)
+        await sql_update_emby2(Emby2.embyid == e.embyid, ex=ex_new, expired=expired)
     else:
-        sql_update_emby(Emby.tg == e.tg, ex=ex_new, lv=lv)
+        await sql_update_emby(Emby.tg == e.tg, ex=ex_new, lv=lv)
 
     i = await reply.edit(
         f'🍒 __ {gm_name} 已调整 emby 用户 {name} 到期时间 {days} 天 (以当前时间计)__'

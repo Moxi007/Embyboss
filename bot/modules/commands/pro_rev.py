@@ -73,9 +73,9 @@ async def pro_user(_, msg):
     
     if query_by_username:
         # 通过用户名查询emby表
-        e = sql_get_emby(tg=username)
+        e = await sql_get_emby(tg=username)
         # 同时查询emby2表
-        e2 = sql_get_emby2(name=username)
+        e2 = await sql_get_emby2(name=username)
 
         if e is None and e2 is None:
             return await sendMessage(msg, f'用户名 `{username}` 在数据库中不存在！')
@@ -85,7 +85,7 @@ async def pro_user(_, msg):
 
         # 更新emby表
         if e is not None and e.embyid is not None:
-            if sql_update_emby(Emby.name == username, lv='a'):
+            if await sql_update_emby(Emby.name == username, lv='a'):
                 user_display = f'[{e.name}](tg://user?id={e.tg})' if e.tg else e.name
                 result_msg += f"🎉 恭喜：{user_display} 获得 {sign_name} 签出的{random.choice(Yulv.load_yulv().white_list)}.\n"
             else:
@@ -93,7 +93,7 @@ async def pro_user(_, msg):
 
         # 更新emby2表
         if e2 is not None:
-            if sql_update_emby2(Emby2.name == username, lv='a'):
+            if await sql_update_emby2(Emby2.name == username, lv='a'):
                 result_msg += f"🎉 恭喜 {e2.name} 获得 {sign_name} 签出的{random.choice(Yulv.load_yulv().white_list)}.\n"
             else:
                 result_msg += "⚠️ 错误：数据库执行错误\n"
@@ -102,10 +102,10 @@ async def pro_user(_, msg):
         LOGGER.info(f"【admin】：{msg.from_user.id} 新增 白名单（用户名） {username}")
     else:
         # 通过tgid查询
-        e = sql_get_emby(tg=uid)
+        e = await sql_get_emby(tg=uid)
         if e is None or e.embyid is None:
             return await sendMessage(msg, f'[ta](tg://user?id={uid}) 还没有emby账户无法操作！请先注册')
-        if sql_update_emby(Emby.tg == uid, lv='a'):
+        if await sql_update_emby(Emby.tg == uid, lv='a'):
             sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
             await asyncio.gather(deleteMessage(msg), sendMessage(msg,
                                                                  f"**{random.choice(Yulv.load_yulv().wh_msg)}**\n\n"
@@ -168,9 +168,9 @@ async def rev_user(_, msg):
     
     if query_by_username:
         # 通过用户名查询emby表
-        e = sql_get_emby(tg=username)
+        e = await sql_get_emby(tg=username)
         # 同时查询emby2表
-        e2 = sql_get_emby2(name=username)
+        e2 = await sql_get_emby2(name=username)
         
         if e is None and e2 is None:
             return await sendMessage(msg, f'用户名 `{username}` 在数据库中不存在！')
@@ -180,7 +180,7 @@ async def rev_user(_, msg):
         
         # 更新emby表
         if e is not None:
-            if sql_update_emby(Emby.name == username, lv='b'):
+            if await sql_update_emby(Emby.name == username, lv='b'):
                 user_display = f'[{e.name}](tg://user?id={e.tg})' if e.tg else e.name
                 result_msg += f"🤖 很遗憾 {user_display} 被 {sign_name} 移出白名单.\n"
             else:
@@ -188,7 +188,7 @@ async def rev_user(_, msg):
         
         # 更新emby2表
         if e2 is not None:
-            if sql_update_emby2(Emby2.name == username, lv='b'):
+            if await sql_update_emby2(Emby2.name == username, lv='b'):
                 result_msg += f"🤖  很遗憾 {e2.name} 被 {sign_name} 移出白名单.\n"
             else:
                 result_msg += "⚠️ 错误：数据库执行错误\n"
@@ -197,7 +197,7 @@ async def rev_user(_, msg):
         LOGGER.info(f"【admin】：{msg.from_user.id} 移除 白名单（用户名） {username}")
     else:
         # 通过tgid查询
-        if sql_update_emby(Emby.tg == uid, lv='b'):
+        if await sql_update_emby(Emby.tg == uid, lv='b'):
             sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
             await asyncio.gather(sendMessage(msg,
                                              f"🤖 很遗憾 [{first.first_name}](tg://user?id={uid}) 被 {sign_name} 移出白名单."),

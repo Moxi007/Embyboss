@@ -20,10 +20,10 @@ async def rmemby_user(_, msg):
         except (IndexError, KeyError, ValueError):
             return await editMessage(reply,
                                      "🔔 **使用格式：**/rmemby tg_id或回复某人 \n/rmemby [emby用户名亦可]")
-        e = sql_get_emby(tg=b)
+        e = await sql_get_emby(tg=b)
     else:
         b = msg.reply_to_message.from_user.id
-        e = sql_get_emby(tg=b)
+        e = await sql_get_emby(tg=b)
 
     if e is None:
         return await reply.edit(f"♻️ 没有检索到 {b} 账户，请确认重试或手动检查。")
@@ -31,7 +31,7 @@ async def rmemby_user(_, msg):
     if e.embyid is not None:
         first = await bot.get_chat(e.tg)
         if await emby.emby_del(emby_id=e.embyid):
-            sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
+            await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
             tem_deluser()
             sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
             try:
@@ -59,18 +59,18 @@ async def only_rm_record(_, msg):
     if tg_id is None:
         return await sendMessage(msg, "❌ 使用格式：/only_rm_record tg_id或回复用户的消息")
 
-    emby1 = sql_get_emby(tg=tg_id)
+    emby1 = await sql_get_emby(tg=tg_id)
     # 获取 emby2 表中的用户信息
-    emby2 = sql_get_emby2(name=tg_id)
+    emby2 = await sql_get_emby2(name=tg_id)
     if not emby1 and not emby2:
         return await sendMessage(msg, f"❌ 未找到 {tg_id} 的记录")
     try:
         res1 = False
         res2 = False
         if emby1:
-            res1 = sql_delete_emby_by_tg(tg_id)
+            res1 = await sql_delete_emby_by_tg(tg_id)
         if emby2:
-            res2 = sql_delete_emby2_by_name(name=tg_id)
+            res2 = await sql_delete_emby2_by_name(name=tg_id)
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
         if res1 or res2:
             await sendMessage(msg, f"管理员 {sign_name} 已删除 TG ID: {tg_id} 的数据库记录")

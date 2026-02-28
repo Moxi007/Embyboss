@@ -44,7 +44,7 @@ async def score_user(_, msg):
         return await sendMessage(msg,
                                  "🔔 **使用格式：**[命令符]score [id] [加减分数]\n\n或回复某人[命令符]score [+/-分数] 请确认对象正确",
                                  timer=60)
-    e = sql_get_emby(tg=uid)
+    e = await sql_get_emby(tg=uid)
     if not e:
         return await sendMessage(msg, f"数据库中没有[ta](tg://user?id={uid}) 。请先私聊我", buttons=group_f)
 
@@ -53,7 +53,7 @@ async def score_user(_, msg):
     if us > MAX_INT_VALUE or us < MIN_INT_VALUE:
         return await sendMessage(msg, f"❌ 操作失败！计算结果超出安全范围（{MIN_INT_VALUE} 到 {MAX_INT_VALUE}）。", timer=60)
     
-    if sql_update_emby(Emby.tg == uid, us=us):
+    if await sql_update_emby(Emby.tg == uid, us=us):
         await asyncio.gather(sendMessage(msg,
                                          f"· 🎯 {gm_name} 调节了 [{first.first_name}](tg://user?id={uid}) 积分： {b}"
                                          f"\n· 🎟️ 实时积分: **{us}**"),
@@ -72,7 +72,7 @@ async def coins_user(_, msg):
                                  "🔔 **使用格式：**[命令符]coins [id] [+/-币]\n\n或回复某人[命令符]coins [+/-币] 请确认对象正确",
                                  timer=60)
 
-    e = sql_get_emby(tg=uid)
+    e = await sql_get_emby(tg=uid)
     if not e:
         return await sendMessage(msg, f"数据库中没有[ta](tg://user?id={uid}) 。请先私聊我", buttons=group_f)
 
@@ -82,7 +82,7 @@ async def coins_user(_, msg):
     if us > MAX_INT_VALUE or us < MIN_INT_VALUE:
         return await sendMessage(msg, f"❌ 操作失败！计算结果超出安全范围（{MIN_INT_VALUE} 到 {MAX_INT_VALUE}）。", timer=60)
     
-    if sql_update_emby(Emby.tg == uid, iv=us):
+    if await sql_update_emby(Emby.tg == uid, iv=us):
         await asyncio.gather(sendMessage(msg,
                                          f"· 🎯 {gm_name} 调节了 [{first.first_name}](tg://user?id={uid}) {sakura_b}： {b}"
                                          f"\n· 🎟️ 实时{sakura_b}: **{us}**"),

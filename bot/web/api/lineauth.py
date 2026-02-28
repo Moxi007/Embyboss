@@ -76,7 +76,7 @@ async def handle_auth_request(request: Request):
                         status_code=200 if cached_auth['allowed'] else 401,
                         media_type="text/plain")
     
-    user_record = sql_get_emby(user_id)
+    user_record = await sql_get_emby(user_id)
 
     if not user_record:
         return Response(content="True", status_code=200, media_type="text/plain")
@@ -101,7 +101,7 @@ async def handle_auth_request(request: Request):
             )
 
             if ban_success:
-                sql_update_emby(Emby.embyid == user_id, lv='c')
+                await sql_update_emby(Emby.embyid == user_id, lv='c')
                 
                 owner_message = (
                     f"✅ **自动封禁通知** ✅\n\n"

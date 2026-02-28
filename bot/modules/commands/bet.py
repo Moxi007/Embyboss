@@ -178,7 +178,7 @@ class BettingSystem:
             return "❌ 赌局已结束，无法继续投注"
         
         # 获取用户信息
-        user = sql_get_emby(user_id)
+        user = await sql_get_emby(user_id)
         if not user:
             return f"❌ 您还未在系统中初始化，请先私信我激活"
 
@@ -206,7 +206,7 @@ class BettingSystem:
             try:
                 # 扣除余额
                 new_balance = user.iv - amount_int
-                sql_update_emby(Emby.tg == user_id, iv=new_balance)
+                await sql_update_emby(Emby.tg == user_id, iv=new_balance)
 
                 await bot.send_message(
                     chat_id=user_id,
@@ -247,7 +247,7 @@ class BettingSystem:
             try:
                 # 扣除余额
                 new_balance = user.iv - amount_int
-                sql_update_emby(Emby.tg == user_id, iv=new_balance)
+                await sql_update_emby(Emby.tg == user_id, iv=new_balance)
                 
                 await bot.send_message(
                     chat_id=user_id,
@@ -376,10 +376,10 @@ class BettingSystem:
                 personal_reward = round((winner['amount'] / total_winner_amount) * prize_pool)
                 
                 # 更新用户余额
-                user = sql_get_emby(winner['user_id'])
+                user = await sql_get_emby(winner['user_id'])
                 if user:
                     new_balance = user.iv + personal_reward
-                    sql_update_emby(Emby.tg == winner['user_id'], iv=new_balance)
+                    await sql_update_emby(Emby.tg == winner['user_id'], iv=new_balance)
                 
                 winner['status'] = 1
                 
@@ -420,7 +420,7 @@ class BettingSystem:
         # 给参与者发送私信通知
         for participant in participants:
             try:
-                user = sql_get_emby(participant['user_id'])
+                user = await sql_get_emby(participant['user_id'])
                 if user:
                     won = participant['type'] == winning_type
                     if won:
@@ -475,7 +475,7 @@ async def handle_startbet_command(client, message):
     user_id = message.from_user.id
     message_text = message.text or message.caption or ""
 
-    user = sql_get_emby(user_id)
+    user = await sql_get_emby(user_id)
     if not user:
         error_message = await message.reply_text(f"❌ 您还未在系统中初始化，请先私信我激活")
         asyncio.create_task(deleteMessage(error_message, 60))
@@ -516,7 +516,7 @@ async def handle_startbet_command(client, message):
 
     # 扣除手续费
     new_balance = user.iv - game.magnification
-    sql_update_emby(Emby.tg == user_id, iv=new_balance)
+    await sql_update_emby(Emby.tg == user_id, iv=new_balance)
 
     await bot.send_message(
         chat_id=user_id,

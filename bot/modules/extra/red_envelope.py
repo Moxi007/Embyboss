@@ -214,7 +214,7 @@ async def grab_red_envelope(_, call):
         )
 
     # 验证用户资格
-    e = sql_get_emby(tg=call.from_user.id)
+    e = await sql_get_emby(tg=call.from_user.id)
     if not e:
         return await callAnswer(call, "你还未私聊bot! 数据库没有你.", True)
 
@@ -256,7 +256,7 @@ async def grab_red_envelope(_, call):
     new_balance = e.iv + amount
     if new_balance > MAX_INT_VALUE or new_balance < MIN_INT_VALUE:
         return await callAnswer(call, f"账户余额超出安全范围（{MIN_INT_VALUE} 到 {MAX_INT_VALUE}）。", True)
-    sql_update_emby(Emby.tg == call.from_user.id, iv=new_balance)
+    await sql_update_emby(Emby.tg == call.from_user.id, iv=new_balance)
 
     # 更新红包信息
     envelope.receivers[call.from_user.id] = {
@@ -295,7 +295,7 @@ async def verify_red_envelope_sender(msg, money, is_private=False):
         tuple: (验证是否通过, 发送者名称, 错误信息)
     """
     if not msg.sender_chat:
-        e = sql_get_emby(tg=msg.from_user.id)
+        e = await sql_get_emby(tg=msg.from_user.id)
         conditions = [
             e,  # 用户存在
             e.iv >= money if e else False,  # 余额充足
@@ -332,7 +332,7 @@ async def verify_red_envelope_sender(msg, money, is_private=False):
             return False, None, error_msg
 
         # 验证通过,扣除余额
-        sql_update_emby(Emby.tg == msg.from_user.id, iv=e.iv - money)
+        await sql_update_emby(Emby.tg == msg.from_user.id, iv=e.iv - money)
         return True, msg.from_user.first_name, None
 
     else:
@@ -388,7 +388,7 @@ async def s_rank(_, msg):
     await msg.delete()
     sender = None
     if not msg.sender_chat:
-        e = sql_get_emby(tg=msg.from_user.id)
+        e = await sql_get_emby(tg=msg.from_user.id)
         if judge_admins(msg.from_user.id):
             sender = msg.from_user.id
         elif not e or e.iv < _open.srank_cost:
@@ -409,7 +409,7 @@ async def s_rank(_, msg):
                 print(e)
             return
         else:
-            sql_update_emby(Emby.tg == msg.from_user.id, iv=e.iv - _open.srank_cost)
+            await sql_update_emby(Emby.tg == msg.from_user.id, iv=e.iv - _open.srank_cost)
             sender = msg.from_user.id
     elif msg.sender_chat.id == msg.chat.id:
         sender = msg.chat.id

@@ -30,7 +30,7 @@ async def members_info(tg=None, name=None):
     """
     if tg is None:
         tg = name
-    data = sql_get_emby(tg)
+    data = await sql_get_emby(tg)
     if data is None:
         return None
     else:
@@ -119,7 +119,7 @@ async def cr_link_one(tg: int, times, count, days: int, method: str):
             link = f't.me/{bot_name}?start={uid}\n'
             links += link
             i += 1
-    if sql_add_code(code_list, tg, days) is False:
+    if await sql_add_code(code_list, tg, days) is False:
         return None
     return links
 
@@ -154,7 +154,7 @@ async def rn_link_one(tg: int, times, count, days: int, method: str):
             link = f't.me/{bot_name}?start={uid}\n'
             links += link
             i += 1
-    if sql_add_code(code_list, tg, days) is False:
+    if await sql_add_code(code_list, tg, days) is False:
         return None
     return links
 
@@ -165,7 +165,7 @@ async def cr_link_two(tg: int, for_tg, days: int):
     uid = f'{for_tg}-{invite_code}'
     code_list.append(uid)
     link = f't.me/{bot_name}?start={uid}'
-    if sql_add_code(code_list, tg, days) is False:
+    if await sql_add_code(code_list, tg, days) is False:
         return None
     return link
 

@@ -3,7 +3,7 @@
 支持 Nezha V0、V1 API 和 Komari API
 """
 import humanize as humanize
-import requests as r
+import aiohttp
 import aiohttp
 import asyncio
 import logging
@@ -250,7 +250,7 @@ class NezhaV1API:
         return None
 
 
-def sever_info_v0(tz, tz_api, tz_id):
+async def sever_info_v0(tz, tz_api, tz_id):
     """V0 API: 使用 token 认证"""
     if not tz or not tz_api or not tz_id: 
         return None
@@ -261,11 +261,14 @@ def sever_info_v0(tz, tz_api, tz_id):
     b = []
     try:
         # 请求地址
-        for x in tz_id:
-            tz_url = f'{tz}/api/v1/server/details?id={x}'
-            # 发送GET请求，获取服务器流量信息
-            res = r.get(tz_url, headers=tz_headers).json()
-            detail = res["result"][0]
+        async with aiohttp.ClientSession() as session:
+            for x in tz_id:
+                tz_url = f'{tz}/api/v1/server/details?id={x}'
+                # 发送GET请求，获取服务器流量信息
+                async with session.get(tz_url, headers=tz_headers) as resp:
+                    if resp.status == 200:
+                        res = await resp.json()
+                        detail = res["result"][0]
             """cpu"""
             uptime = f'{int(detail["status"]["Uptime"] / 86400)} 天' if detail["status"]["Uptime"] != 0 else '⚠️掉线辣'
             CPU = f"{detail['status']['CPU']:.2f}"
@@ -377,5 +380,5 @@ async def sever_info(tz, tz_api, tz_id, tz_version="v0", tz_username=None, tz_pa
         # Komari 使用异步调用
         return await sever_info_komari_async(tz, tz_api, tz_id)
     else:
-        # 默认使用 V0 API (同步调用)
-        return sever_info_v0(tz, tz_api, tz_id)
+        # 默认使用 V0 API (异步调用)
+        return await sever_info_v0(tz, tz_api, tz_id)

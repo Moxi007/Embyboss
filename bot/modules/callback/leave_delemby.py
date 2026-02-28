@@ -15,11 +15,11 @@ async def leave_del_emby(_, event: ChatMemberUpdated):
             user_id = event.old_chat_member.user.id
             user_fname = event.old_chat_member.user.first_name
             try:
-                e = sql_get_emby(tg=user_id)
+                e = await sql_get_emby(tg=user_id)
                 if e is None or e.embyid is None:
                     return
                 if await emby.emby_del(emby_id=e.embyid):
-                    sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
+                    await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
                     tem_deluser()
                     LOGGER.info(
                         f'【退群删号】- {user_fname}-{user_id} 已经离开了群组，咕噜噜，ta的账户被吃掉啦！')
@@ -42,11 +42,11 @@ async def leave_del_emby(_, event: ChatMemberUpdated):
             user_id = event.new_chat_member.user.id
             user_fname = event.new_chat_member.user.first_name
             try:
-                e = sql_get_emby(tg=user_id)
+                e = await sql_get_emby(tg=user_id)
                 if e is None or e.embyid is None:
                     return
                 if await emby.emby_del(emby_id=e.embyid):
-                    sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
+                    await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
                                     ex=None)
                     tem_deluser()
                     LOGGER.info(

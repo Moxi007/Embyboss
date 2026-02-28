@@ -18,7 +18,7 @@ route = APIRouter()
 @route.get("/user_info")
 async def user_info(tg: str):
     # 从数据库获取用户信息
-    user = sql_get_emby(tg)
+    user = await sql_get_emby(tg)
 
     if not user:
         return {"code": 404, "message": "用户不存在"}
@@ -47,7 +47,7 @@ async def update_credit(request: Request):
             return {"code": 400, "message": "参数错误"}
 
         # 获取用户信息
-        user = sql_get_emby(tg)
+        user = await sql_get_emby(tg)
         if not user:
             return {"code": 404, "message": "用户不存在"}
 
@@ -57,7 +57,7 @@ async def update_credit(request: Request):
             return {"code": 400, "message": "积分不足"}
         # 更新用户积分
         user.iv = new_iv
-        res = sql_update_emby(Emby.tg == tg, iv=new_iv)
+        res = await sql_update_emby(Emby.tg == tg, iv=new_iv)
         if res:
 
             return {
@@ -92,7 +92,7 @@ async def ban_user(request: Request):
             return {"code": 400, "message": "参数错误"}
 
         # 获取用户信息 query 可以是 tg 或 embyname 或 embyid
-        user = sql_get_emby(tg = query)
+        user = await sql_get_emby(tg = query)
         if not user or not user.embyid:
             return {"code": 404, "message": "用户不存在"}
         
@@ -101,7 +101,7 @@ async def ban_user(request: Request):
         if disable_emby:
             # 更新用户等级为封禁状态
             user.lv = 'c'  # 封禁状态
-            sql_update_emby(Emby.tg == user.tg, lv='c')
+            await sql_update_emby(Emby.tg == user.tg, lv='c')
             send_notification = f"#BAN通告\n用户 {user.name} (TG: #{user.tg}, EmbyID: {user.embyid}) 已被封禁。"
             LOGGER.info(send_notification)
             await bot.send_message(chat_id=group[0], text=send_notification)

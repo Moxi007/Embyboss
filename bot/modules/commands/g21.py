@@ -375,9 +375,9 @@ class G21Session:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                user = sql_get_emby(user_id)
+                user = await sql_get_emby(user_id)
                 if user:
-                    sql_update_emby(Emby.tg == user_id, iv=user.iv + refund_amount)
+                    await sql_update_emby(Emby.tg == user_id, iv=user.iv + refund_amount)
                     break
             except Exception as e:
                 await asyncio.sleep(1)
@@ -392,9 +392,9 @@ class G21Session:
         if refund_all:
             for player in self.players:
                 try:
-                    user = sql_get_emby(player['user_id'])
+                    user = await sql_get_emby(player['user_id'])
                     if user:
-                        sql_update_emby(Emby.tg == player['user_id'], iv=user.iv + player['bet_amount'])
+                        await sql_update_emby(Emby.tg == player['user_id'], iv=user.iv + player['bet_amount'])
                 except: pass
         
         try:
@@ -777,10 +777,10 @@ class ResolutionManager:
         max_retries = 3
         for _ in range(max_retries):
             try:
-                user = sql_get_emby(user_id)
+                user = await sql_get_emby(user_id)
                 if user:
                     if result == "WIN": 
-                        sql_update_emby(Emby.tg == user_id, iv=user.iv + bet_amount + payout)
+                        await sql_update_emby(Emby.tg == user_id, iv=user.iv + bet_amount + payout)
                     break
             except:
                 await asyncio.sleep(1)
@@ -813,10 +813,10 @@ class ResolutionManager:
         max_retries = 3
         for _ in range(max_retries):
             try:
-                dealer_user = sql_get_emby(self.session.dealer_user_id)
+                dealer_user = await sql_get_emby(self.session.dealer_user_id)
                 if dealer_user:
                     new_iv = dealer_user.iv + self.session.dealer_net_profit
-                    sql_update_emby(Emby.tg == self.session.dealer_user_id, iv=new_iv)
+                    await sql_update_emby(Emby.tg == self.session.dealer_user_id, iv=new_iv)
                     break
             except:
                 await asyncio.sleep(1)
@@ -887,7 +887,7 @@ async def handle_startg21_command(client: Client, message: Message):
     group_id = message.chat.id
     
     try:
-        user = sql_get_emby(user_id)
+        user = await sql_get_emby(user_id)
         if not user:
             x = await message.reply_text("❌ 您还未在系统中初始化，请先私信我激活")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
@@ -945,7 +945,7 @@ async def handle_g21_command(client: Client, message: Message):
             x = await message.reply_text("❌ 您是本局庄家，无法作为玩家下注！")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
 
-        user = sql_get_emby(user_id)
+        user = await sql_get_emby(user_id)
         if not user: return
         
         parse_result = CommandParser.parse_g21_command(command_text, user.iv)
@@ -960,14 +960,14 @@ async def handle_g21_command(client: Client, message: Message):
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
         
         try:
-            sql_update_emby(Emby.tg == user_id, iv=user.iv - bet_amount)
+            await sql_update_emby(Emby.tg == user_id, iv=user.iv - bet_amount)
         except Exception:
             x = await message.reply_text("❌ 系统错误，请稍后再试")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
         
         result = await session.add_player(user_id, username, bet_amount)
         if not result['success']:
-            try: sql_update_emby(Emby.tg == user_id, iv=user.iv) 
+            try: await sql_update_emby(Emby.tg == user_id, iv=user.iv) 
             except: pass
             x = await message.reply_text(f"❌ {result['message']}")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
@@ -1008,9 +1008,9 @@ async def handle_lobby_quit_callback(client: Client, call: CallbackQuery):
             if len(session.players) > 0:
                 penalty = 100
                 try:
-                    dealer_user = sql_get_emby(user_id)
+                    dealer_user = await sql_get_emby(user_id)
                     if dealer_user:
-                        sql_update_emby(Emby.tg == user_id, iv=dealer_user.iv - penalty)
+                        await sql_update_emby(Emby.tg == user_id, iv=dealer_user.iv - penalty)
                 except: pass
             
             await session.cleanup(client, refund_all=True)

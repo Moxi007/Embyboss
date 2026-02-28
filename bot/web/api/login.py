@@ -81,7 +81,7 @@ async def login(request: Request):
                 code=400,
                 message="缺少用户名"
             )
-        embyindb = sql_get_emby(username)
+        embyindb = await sql_get_emby(username)
         if not embyindb:
             LOGGER.warning(f"Login attempt for non-existent user: {username}")
             return LoginResponse(

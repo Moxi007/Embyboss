@@ -71,7 +71,7 @@ async def handle_favorite_webhook(request: Request):
             "date": webhook_data.get("Date", "")
         }
         # 保存到数据库
-        save_result = sql_add_favorites(
+        save_result = await sql_add_favorites(
             embyid=embyid,
             embyname=embyname,
             item_id=item_id,

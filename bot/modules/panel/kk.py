@@ -36,7 +36,7 @@ async def user_info(_, msg):
         except AttributeError:
             pass
         else:
-            sql_add_emby(uid)
+            await sql_add_emby(uid)
             text, keyboard = await cr_kk_ikb(uid, first.first_name)
             await sendMessage(msg, text=text, buttons=keyboard)  # protect_content=True 移除禁止复制
 
@@ -49,7 +49,7 @@ async def user_info(_, msg):
         except AttributeError:
             pass
 
-        sql_add_emby(uid)
+        await sql_add_emby(uid)
         text, keyboard = await cr_kk_ikb(uid, msg.reply_to_message.from_user.first_name)
         await sendMessage(msg, text=text, buttons=keyboard)
 
@@ -68,14 +68,14 @@ async def kk_user_ban(_, call):
                                  timer=60)
 
     first = await bot.get_chat(b)
-    e = sql_get_emby(tg=b)
+    e = await sql_get_emby(tg=b)
     if e.embyid is None:
         await editMessage(call, f'💢 ta 没有注册账户。', timer=60)
     else:
         text = f'🎯 管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id}) 对 [{first.first_name}](tg://user?id={b}) - {e.name} 的'
         if e.lv != "c":
             if await emby.emby_change_policy(emby_id=e.embyid, disable=True) is True:
-                if sql_update_emby(Emby.tg == b, lv='c') is True:
+                if await sql_update_emby(Emby.tg == b, lv='c') is True:
                     text += f'封禁完成，此状态可在下次续期时刷新'
                     LOGGER.info(text)
                 else:
@@ -86,7 +86,7 @@ async def kk_user_ban(_, call):
                 LOGGER.error(text)
         elif e.lv == "c":
             if await emby.emby_change_policy(emby_id=e.embyid):
-                if sql_update_emby(Emby.tg == b, lv='b'):
+                if await sql_update_emby(Emby.tg == b, lv='b'):
                     text += '解禁完成'
                     LOGGER.info(text)
                 else:
@@ -106,7 +106,7 @@ async def user_embyextralib_unblock(_, call):
         return await call.answer("请不要以下犯上 ok？", show_alert=True)
     await call.answer('🎬 正在为TA开启显示ing')
     tgid = int(call.data.split("-")[1])
-    e = sql_get_emby(tg=tgid)
+    e = await sql_get_emby(tg=tgid)
     if e.embyid is None:
         await editMessage(call, f'💢 ta 没有注册账户。', timer=60)
         return
@@ -136,7 +136,7 @@ async def user_embyextralib_block(_, call):
         return await call.answer("请不要以下犯上 ok？", show_alert=True)
     await call.answer('🎬 正在为TA关闭显示ing')
     tgid = int(call.data.split("-")[1])
-    e = sql_get_emby(tg=tgid)
+    e = await sql_get_emby(tg=tgid)
     if e.embyid is None:
         await editMessage(call, f'💢 ta 没有注册账户。', timer=60)
         return
@@ -172,7 +172,7 @@ async def gift(_, call):
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决")
 
     first = await bot.get_chat(b)
-    e = sql_get_emby(tg=b)
+    e = await sql_get_emby(tg=b)
     if e.embyid is None:
         link = await cr_link_two(tg=call.from_user.id, for_tg=b, days=config.kk_gift_days)
         await editMessage(call, f"🌟 好的，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n"
@@ -197,12 +197,12 @@ async def close_emby(_, call):
                                  timer=60)
 
     first = await bot.get_chat(b)
-    e = sql_get_emby(tg=b)
+    e = await sql_get_emby(tg=b)
     if e.embyid is None:
         return await editMessage(call, f'💢 ta 还没有注册账户。', timer=60)
 
     if await emby.emby_del(emby_id=e.embyid):
-        sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
+        await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
         tem_deluser()
         await editMessage(call,
                           f'🎯 done，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n等级：{e.lv} - [{first.first_name}](tg://user?id={b}) '

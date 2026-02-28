@@ -1,4 +1,3 @@
-import requests
 import json
 from bot import LOGGER, moviepilot, save_config
 import aiohttp
@@ -45,8 +44,9 @@ async def login():
     url = f"{mp.url}/api/v1/login/access-token"
     payload = f"username={mp.username}&password={mp.password}"
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    response = requests.post(url, data=payload, headers=headers, timeout=TIMEOUT)
-    result = response.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, data=payload, headers=headers, timeout=TIMEOUT) as response:
+            result = await response.json()
     if 'access_token' in result:
         mp.access_token = result['token_type'] + ' ' + result['access_token']
         moviepilot.access_token = mp.access_token # 保存到config

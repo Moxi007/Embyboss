@@ -1,7 +1,7 @@
 import asyncio
 import os
 
-import requests
+import aiohttp
 from pyrogram import filters
 from pyrogram.types import Message
 
@@ -214,38 +214,39 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
     # print("update")
     if not auto_update.status and not manual: return
     commit_url = f"https://api.github.com/repos/{auto_update.git_repo}/commits?per_page=1"
-    resp = requests.get(commit_url)
-    if resp.status_code == 200:
-        latest_commit = resp.json()[0]["sha"]
-        if latest_commit != auto_update.commit_sha:
-            up_description = resp.json()[0]["commit"]["message"]
-            await execute("git fetch --all")
-            if force:  # 默认不重置，保留本地更改
-                await execute("git reset --hard origin/master")
-            await execute("git pull --all")
-            # await execute(f"{executable} -m pip install --upgrade -r requirements.txt")
-            await execute(f"{executable} -m pip install  -r requirements.txt")
-            text = '【AutoUpdate_Bot】运行成功，已更新bot代码。重启bot中...'
-            if not msg:
-                reply = await bot.send_message(chat_id=group[0], text=text)
-                schedall.restart_chat_id = group[0]
-                schedall.restart_msg_id = reply.id
+    async with aiohttp.ClientSession() as session:
+        async with session.get(commit_url) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                latest_commit = data[0]["sha"]
+                if latest_commit != auto_update.commit_sha:
+                    up_description = data[0]["commit"]["message"]
+                    await execute("git fetch --all")
+                    if force:  # 默认不重置，保留本地更改
+                        await execute("git reset --hard origin/master")
+                    await execute("git pull --all")
+                    # await execute(f"{executable} -m pip install --upgrade -r requirements.txt")
+                    await execute(f"{executable} -m pip install  -r requirements.txt")
+                    text = '【AutoUpdate_Bot】运行成功，已更新bot代码。重启bot中...'
+                    if not msg:
+                        reply = await bot.send_message(chat_id=group[0], text=text)
+                        schedall.restart_chat_id = group[0]
+                        schedall.restart_msg_id = reply.id
+                    else:
+                        await msg.edit(text)
+                    LOGGER.info(text)
+                    auto_update.commit_sha = latest_commit
+                    auto_update.up_description = up_description
+                    save_config()
+                    os.execl(executable, executable, *argv)
+                else:
+                    message = "【AutoUpdate_Bot】运行成功，未检测到更新，结束"
+                    await bot.send_message(chat_id=group[0], text=message) if not msg else await msg.edit(message)
+                    LOGGER.info(message)
             else:
-                await msg.edit(text)
-            LOGGER.info(text)
-            auto_update.commit_sha = latest_commit
-            auto_update.up_description = up_description
-            save_config()
-            os.execl(executable, executable, *argv)
-        else:
-            message = "【AutoUpdate_Bot】运行成功，未检测到更新，结束"
-            await bot.send_message(chat_id=group[0], text=message) if not msg else await msg.edit(message)
-            LOGGER.info(message)
-
-    else:
-        text = '【AutoUpdate_Bot】失败，请检查 git_repo 是否正确，形如 `berry8838/Sakura_embyboss`'
-        await bot.send_message(chat_id=group[0], text=text) if not msg else await msg.edit(text)
-        LOGGER.info(text)
+                text = '【AutoUpdate_Bot】失败，请检查 git_repo 是否正确，形如 `berry8838/Sakura_embyboss`'
+                await bot.send_message(chat_id=group[0], text=text) if not msg else await msg.edit(text)
+                LOGGER.info(text)
 
 
 @bot.on_message(filters.command('update_bot', prefixes) & admins_on_filter)

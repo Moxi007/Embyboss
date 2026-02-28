@@ -24,7 +24,7 @@ async def user_in_checkin(_, call):
             return
 
     if _open.checkin:
-        e = sql_get_emby(call.from_user.id)
+        e = await sql_get_emby(call.from_user.id)
         if not e:
             await callAnswer(call, '🧮 未查询到数据库', True)
 
@@ -35,7 +35,7 @@ async def user_in_checkin(_, call):
                     return
             reward = random.randint(_open.checkin_reward[0], _open.checkin_reward[1])
             s = e.iv + reward
-            sql_update_emby(Emby.tg == call.from_user.id, iv=s, ch=now)
+            await sql_update_emby(Emby.tg == call.from_user.id, iv=s, ch=now)
             text = f'🎉 **签到成功** | {reward} {sakura_b}\n💴 **当前持有** | {s} {sakura_b}\n⏳ **签到日期** | {now.strftime("%Y-%m-%d")}'
             await asyncio.gather(deleteMessage(call), sendMessage(call, text=text))
 

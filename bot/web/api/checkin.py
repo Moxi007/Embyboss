@@ -411,7 +411,7 @@ async def verify_checkin(
                 await send_log_to_tg('❌ 失败', request_data.user_id, reason, client_ip, user_agent)
                 raise HTTPException(status_code=400, detail="请求异常，请重试")
 
-        e = sql_get_emby(request_data.user_id)
+        e = await sql_get_emby(request_data.user_id)
         if not e:
             reason = "用户不存在于数据库"
             LOGGER.warning(f"⚠️ 签到失败 ({reason}) - {log_base_info}")
@@ -431,7 +431,7 @@ async def verify_checkin(
         new_balance = e.iv + reward
 
         try:
-            sql_update_emby(Emby.tg == request_data.user_id, iv=new_balance, ch=now)
+            await sql_update_emby(Emby.tg == request_data.user_id, iv=new_balance, ch=now)
         except Exception as db_err:
             reason = f"数据库更新错误: {db_err}"
             LOGGER.error(f"❌ 签到失败 ({reason}) - {log_base_info}")

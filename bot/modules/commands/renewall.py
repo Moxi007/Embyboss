@@ -25,7 +25,7 @@ async def renew_all(_, msg):
                                  "🔔 **使用格式：**/renewall [+/-天数]\n\n  给所有未封禁emby [+/-天数]", timer=60)
 
     send = await bot.send_photo(msg.chat.id, photo=bot_photo, caption="⚡【派送任务】\n  **正在开启派送中...请稍后**")
-    rst = get_all_emby(Emby.lv == 'b')
+    rst = await get_all_emby(Emby.lv == 'b')
     if rst is None:
         LOGGER.info(
             f"【派送任务】 -{msg.from_user.first_name}({msg.from_user.id}) 没有检测到任何emby账户，结束")
@@ -40,7 +40,7 @@ async def renew_all(_, msg):
         b += 1
         ex_new = i.ex + timedelta(days=a)
         ls.append([i.tg, ex_new])
-    if sql_update_embys(some_list=ls, method='ex'):
+    if await sql_update_embys(some_list=ls, method='ex'):
         end = time.perf_counter()
         times = end - start
         await send.edit(
@@ -73,7 +73,7 @@ async def coins_all(_, msg):
                                  f"🔔 **使用格式：**/coinsall [+/-数量] [等级] [发送消息]\n\n给指定等级的用户 [+/- {sakura_b}]\n示例： `/coinsall 100 b` 给所有b级用户加100{sakura_b}\n示例： `/coinsall 100 b true` 给所有b级用户加100{sakura_b}并私发消息\n等级说明:\na- 白名单账户\nb- 正常账户\nc- 已封禁账户\n发送消息参数：true 表示发送私信，默认不发送\n", timer=60)
     send = await bot.send_photo(msg.chat.id, photo=bot_photo,
                                 caption=f"⚡【{sakura_b}任务】\n  **正在开启派送{sakura_b}中...请稍后**")
-    rst = get_all_emby(Emby.lv == lv)
+    rst = await get_all_emby(Emby.lv == lv)
     if rst is None:
         LOGGER.info(
             f"【{sakura_b}任务】 -{msg.from_user.first_name}({msg.from_user.id}) 没有检测到任何emby账户，结束")
@@ -86,7 +86,7 @@ async def coins_all(_, msg):
         b += 1
         iv_new = i.iv + coin
         ls.append([i.tg, iv_new])
-    if sql_update_embys(some_list=ls, method='iv'):
+    if await sql_update_embys(some_list=ls, method='iv'):
         end = time.perf_counter()
         times = end - start
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
@@ -140,7 +140,7 @@ async def coinsclear(_, msg):
     if level_param == 'all':
         send = await bot.send_photo(msg.chat.id, photo=bot_photo,
                                 caption=f"⚡【{sakura_b}任务】\n  **正在清除所有用户币币...请稍后**")
-        rst = sql_clear_emby_iv()
+        rst = await sql_clear_emby_iv()
         if rst:
             await send.edit(f"⚡【{sakura_b}任务】\n\n  清除所有用户币币完成")
             LOGGER.info(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 清除所有用户币币完成")
@@ -154,7 +154,7 @@ async def coinsclear(_, msg):
                                 caption=f"⚡【{sakura_b}任务】\n  **正在清除{lv}级用户币币...请稍后**")
         
         # 获取指定等级的所有用户
-        rst = get_all_emby(Emby.lv == lv)
+        rst = await get_all_emby(Emby.lv == lv)
         if rst is None or len(rst) == 0:
             LOGGER.info(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 没有检测到{lv}级用户")
             return await send.edit(f"⚡【{sakura_b}任务】\n\n  没有检测到{lv}级用户")
@@ -164,7 +164,7 @@ async def coinsclear(_, msg):
         for i in rst:
             ls.append([i.tg, 0])
         
-        if sql_update_embys(some_list=ls, method='iv'):
+        if await sql_update_embys(some_list=ls, method='iv'):
             count = len(ls)
             await send.edit(f"⚡【{sakura_b}任务】\n\n  清除{lv}级用户币币完成\n  共清除 {count} 个用户")
             LOGGER.info(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 清除{lv}级用户币币完成，共 {count} 个用户")
@@ -194,9 +194,9 @@ async def call_all(_, msg):
     if not call or call.text == '/cancel':
         return await msg.reply('好的,您已取消操作.')
     elif call.text == '2':
-        chat_members = get_all_emby(Emby.tg.isnot(None))
+        chat_members = await get_all_emby(Emby.tg.isnot(None))
     elif call.text == '1':
-        chat_members = get_all_emby(Emby.embyid.isnot(None))
+        chat_members = await get_all_emby(Emby.embyid.isnot(None))
     reply = await msg.reply('开始执行发送......')
     a = 0
     start = time.perf_counter()

@@ -58,7 +58,7 @@ def format_user_level(user_record) -> str:
     }
     return level_map.get(user_record.lv, " (未知等级)")
 
-def format_user_expiry(user_record, embyid=None) -> str:
+async def format_user_expiry(user_record, embyid=None) -> str:
     if user_record and getattr(user_record, 'lv', None) == 'a':
         return "+ ∞"
 
@@ -66,7 +66,7 @@ def format_user_expiry(user_record, embyid=None) -> str:
         return str(user_record.ex)
 
     if embyid:
-        e2 = sql_get_emby2(embyid)
+        e2 = await sql_get_emby2(embyid)
         if e2:
             if getattr(e2, 'lv', None) == 'a':
                 return "+ ∞"
@@ -293,11 +293,11 @@ async def webhook(request: Request):
     if not emby_user_id or user_name_from_webhook in IGNORED_USERS_SET:
         return Response(status_code=204)
 
-    user_record = sql_get_emby(emby_user_id)
+    user_record = await sql_get_emby(emby_user_id)
     tg_info_str, emby_username = await format_user_info(user_record, fallback_name=user_name_from_webhook)
     
     user_level_str = format_user_level(user_record)
-    user_expiry_str = format_user_expiry(user_record, embyid=emby_user_id)
+    user_expiry_str = await format_user_expiry(user_record, embyid=emby_user_id)
 
     date = convert_utc_to_beijing(data.get('Date', ''))
     session_data = data.get('Session', {})

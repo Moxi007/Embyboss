@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, BigInteger, Text, Float
+from sqlalchemy import Column, String, DateTime, BigInteger, Text, Float, select, update
 import datetime
 from bot.sql_helper import Base, Session, engine
 from cacheout import Cache
@@ -22,56 +22,80 @@ class RequestRecord(Base):
                       onupdate=datetime.datetime.utcnow)
 
 
-RequestRecord.__table__.create(bind=engine, checkfirst=True)
-
-
-def sql_add_request_record(tg: int, download_id: str, request_name: str, detail: str, cost: str):
-    with Session() as session:
+async def sql_add_request_record(tg: int, download_id: str, request_name: str, detail: str, cost: str):
+    async with Session() as session:
         try:
             request_record = RequestRecord(
                 tg=tg, download_id=download_id, request_name=request_name, detail=detail, cost=cost, left_time='一万年吧')
             session.add(request_record)
-            session.commit()
+            await session.commit()
             return True
         except Exception as e:
-            session.rollback()
+            await session.rollback()
             return False
 
 
-def sql_get_request_record_by_tg(tg: int, page: int = 1, limit: int = 5):
-    with Session() as session:
-        request_record = session.query(RequestRecord).filter(
-            RequestRecord.tg == tg).order_by(RequestRecord.create_at.desc()).limit(limit + 1).offset((page - 1) * limit).all()
+async def sql_get_request_record_by_tg(tg: int, page: int = 1, limit: int = 5):
+    async with Session() as session:
+        result = await session.execute(
+            select(RequestRecord)
+            .filter(RequestRecord.tg == tg)
+            .order_by(RequestRecord.create_at.desc())
+            .limit(limit + 1)
+            .offset((page - 1) * limit)
+        )
+        request_record = list(result.scalars().all())
+        
+        for r in request_record:
+            session.expunge(r)
+            
         if len(request_record) == 0:
             return None, False, False
+        
         if len(request_record) == limit + 1:
             has_next = True
             request_record = request_record[:-1]
         else:
             has_next = False
+            
         if page > 1:
             has_prev = True
         else:
             has_prev = False
+            
         return request_record, has_prev, has_next
 
-def sql_get_request_record_by_download_id(download_id: str):
-    with Session() as session:
-        request_record = session.query(RequestRecord).filter(RequestRecord.download_id == download_id).first()
+
+async def sql_get_request_record_by_download_id(download_id: str):
+    async with Session() as session:
+        result = await session.execute(
+            select(RequestRecord).filter(RequestRecord.download_id == download_id)
+        )
+        request_record = result.scalars().first()
+        if request_record:
+            session.expunge(request_record)
         return request_record
 
-def sql_get_request_record_by_transfer_state(transfer_state: str = None):
-    with Session() as session:
-        request_record = session.query(RequestRecord).filter(RequestRecord.transfer_state == transfer_state).all()
-        return request_record
+
+async def sql_get_request_record_by_transfer_state(transfer_state: str = None):
+    async with Session() as session:
+        result = await session.execute(
+            select(RequestRecord).filter(RequestRecord.transfer_state == transfer_state)
+        )
+        request_records = list(result.scalars().all())
+        for r in request_records:
+            session.expunge(r)
+        return request_records
 
 
-def sql_update_request_status(download_id: str, download_state: str, transfer_state: str = None, progress: float = None, left_time: str = None):
+async def sql_update_request_status(download_id: str, download_state: str, transfer_state: str = None, progress: float = None, left_time: str = None):
     """更新下载状态"""
-    with Session() as session:
+    async with Session() as session:
         try:
-            record = session.query(RequestRecord).filter(
-                RequestRecord.download_id == download_id).first()
+            result = await session.execute(
+                select(RequestRecord).filter(RequestRecord.download_id == download_id)
+            )
+            record = result.scalars().first()
             if record:
                 if download_state is not None:
                     record.download_state = download_state
@@ -81,8 +105,9 @@ def sql_update_request_status(download_id: str, download_state: str, transfer_st
                     record.progress = progress
                 if left_time is not None:
                     record.left_time = left_time
-                session.commit()
+                await session.commit()
                 return True
         except Exception as e:
-            session.rollback()
+            await session.rollback()
             return False
+

@@ -34,7 +34,7 @@ async def find_sth_media(_, inline_query: InlineQuery):
                                              is_personal=True,
                                              switch_pm_parameter='start')
 
-        e = sql_get_emby(tg=inline_query.from_user.id)
+        e = await sql_get_emby(tg=inline_query.from_user.id)
 
         if not e or not e.embyid:
             results = [InlineQueryResultArticle(
@@ -100,7 +100,7 @@ async def find_sth_media(_, inline_query: InlineQuery):
 async def favorite_item(_, call):
     item_id = call.data.split(':')[1]
     try:
-        e = sql_get_emby(call.from_user.id).embyid
+        e = await sql_get_emby(call.from_user.id).embyid
         success, title = await asyncio.gather(emby.add_favorite_items(emby_id=e, item_id=item_id),
                                               emby.item_id_name(emby_id=e, item_id=item_id))
         if success:

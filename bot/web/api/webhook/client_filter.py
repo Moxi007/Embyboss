@@ -164,12 +164,12 @@ async def handle_client_filter_webhook(request: Request):
                 await terminate_blocked_session(session_id, client_name)
             block_success = False
 
-            user_details = sql_get_emby(emby_id)
+            user_details = await sql_get_emby(emby_id)
             if getattr(config, "client_filter_block_user", False):
                 block_success = await emby.emby_change_policy(emby_id=emby_id, disable=True)
                 if block_success:
                     if user_details:
-                        sql_update_emby(Emby.tg == user_details.tg, lv="c")
+                        await sql_update_emby(Emby.tg == user_details.tg, lv="c")
 
             # 记录拦截信息
             await log_blocked_request(

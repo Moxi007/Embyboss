@@ -118,6 +118,9 @@ class Embyservice(metaclass=Singleton):
         
         self._session: Optional[aiohttp.ClientSession] = None
         self._session_lock = asyncio.Lock()
+        
+        # 限制 Emby 账户创建并发数，保护 SQLite 数据库
+        self._create_semaphore = asyncio.Semaphore(1)
 
     @asynccontextmanager
     async def session(self):
@@ -228,53 +231,56 @@ class Embyservice(metaclass=Singleton):
         :param days: 有效天数
         :return: (用户ID, 密码, 过期时间) 或 False
         """
-        try:
-            expiry_date = datetime.now() + timedelta(days=days)
-            
-            # 1. 创建用户
-            LOGGER.info(f"开始创建用户: {name}")
-            result = await self._request('POST', '/emby/Users/New', json={"Name": name})
-            if not result.success:
-                LOGGER.error(f"创建用户失败: {result.error}")
-                return False
-            
-            user_id = result.data.get("Id")
-            if not user_id:
-                LOGGER.error("无法获取用户ID")
-                return False
-            
-            # 2. 设置密码
-            password = await pwd_create(8)
-            pwd_data = pwd_policy(user_id, new=password)
-            result = await self._request('POST', f'/emby/Users/{user_id}/Password', json=pwd_data)
-            if not result.success:
-                LOGGER.error(f"设置密码失败: {result.error}")
-                return False
-            
-            # 3. 设置策略
-            policy = create_policy(False, False)
-            result = await self._request('POST', f'/emby/Users/{user_id}/Policy', json=policy)
-            if not result.success:
-                LOGGER.error(f"设置策略失败: {result.error}")
-                return False
-            
-            # 4. 隐藏 emby_block 和 extra_emby_libs 媒体库
+        async with self._create_semaphore:
+            # 增加少许延迟，给予 Emby SQLite 写入喘息时间 (约 1-2个注册/s)
+            await asyncio.sleep(0.5)
             try:
-                # 使用封装的隐藏方法
-                block_libs = emby_block + extra_emby_libs
-                result = await self.hide_folders_by_names(user_id, block_libs)
-                if not result:
-                    LOGGER.warning(f"设置媒体库权限失败: {user_id}，但用户已创建成功")
+                expiry_date = datetime.now() + timedelta(days=days)
+                
+                # 1. 创建用户
+                LOGGER.info(f"开始创建用户: {name}")
+                result = await self._request('POST', '/emby/Users/New', json={"Name": name})
+                if not result.success:
+                    LOGGER.error(f"创建用户失败: {result.error}")
+                    return False
+                
+                user_id = result.data.get("Id")
+                if not user_id:
+                    LOGGER.error("无法获取用户ID")
+                    return False
+                
+                # 2. 设置密码
+                password = await pwd_create(8)
+                pwd_data = pwd_policy(user_id, new=password)
+                result = await self._request('POST', f'/emby/Users/{user_id}/Password', json=pwd_data)
+                if not result.success:
+                    LOGGER.error(f"设置密码失败: {result.error}")
+                    return False
+                
+                # 3. 设置策略
+                policy = create_policy(False, False)
+                result = await self._request('POST', f'/emby/Users/{user_id}/Policy', json=policy)
+                if not result.success:
+                    LOGGER.error(f"设置策略失败: {result.error}")
+                    return False
+                
+                # 4. 隐藏 emby_block 和 extra_emby_libs 媒体库
+                try:
+                    # 使用封装的隐藏方法
+                    block_libs = emby_block + extra_emby_libs
+                    result = await self.hide_folders_by_names(user_id, block_libs)
+                    if not result:
+                        LOGGER.warning(f"设置媒体库权限失败: {user_id}，但用户已创建成功")
+                except Exception as e:
+                    # 如果设置媒体库权限失败，记录错误但不影响用户创建
+                    LOGGER.error(f"设置媒体库权限异常: {name} (ID: {user_id}) - {str(e)}")
+                
+                LOGGER.info(f"成功创建用户: {name} (ID: {user_id})")
+                return user_id, password, expiry_date
+                
             except Exception as e:
-                # 如果设置媒体库权限失败，记录错误但不影响用户创建
-                LOGGER.error(f"设置媒体库权限异常: {name} (ID: {user_id}) - {str(e)}")
-            
-            LOGGER.info(f"成功创建用户: {name} (ID: {user_id})")
-            return user_id, password, expiry_date
-            
-        except Exception as e:
-            LOGGER.error(f"创建用户异常: {name} - {str(e)}")
-            return False
+                LOGGER.error(f"创建用户异常: {name} - {str(e)}")
+                return False
 
     async def emby_del(self, emby_id: str) -> bool:
         """
@@ -314,7 +320,7 @@ class Embyservice(metaclass=Singleton):
             
             if new_password is None:
                 # 更新数据库记录为无密码
-                if sql_update_emby(Emby.embyid == emby_id, pwd=None):
+                if await sql_update_emby(Emby.embyid == emby_id, pwd=None):
                     LOGGER.info(f"成功重置密码为空: {emby_id}")
                     return True
                 else:
@@ -329,7 +335,7 @@ class Embyservice(metaclass=Singleton):
                     return False
                 
                 # 更新数据库
-                if sql_update_emby(Emby.embyid == emby_id, pwd=new_password):
+                if await sql_update_emby(Emby.embyid == emby_id, pwd=new_password):
                     LOGGER.info(f"成功重置密码: {emby_id}")
                     return True
                 else:

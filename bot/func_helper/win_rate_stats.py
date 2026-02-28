@@ -89,7 +89,7 @@ class WinRateStatsManager:
                 return False
     
     @staticmethod
-    def get_user_stats(user_id: int) -> Optional[Dict]:
+    async def get_user_stats(user_id: int) -> Optional[Dict]:
         """
         获取用户游戏统计数据
         
@@ -105,7 +105,7 @@ class WinRateStatsManager:
             或 None（用户不存在）
         """
         try:
-            user = sql_get_emby(user_id)
+            user = await sql_get_emby(user_id)
             if not user:
                 LOGGER.warning(f"get_user_stats: 用户不存在: {user_id}")
                 return None

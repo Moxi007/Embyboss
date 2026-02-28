@@ -23,7 +23,7 @@ async def gm_ikb(_, call):
     stat, all_user, tem, timing = await open_check()
     stat = "True" if stat else "False"
     timing = 'Turn off' if timing == 0 else str(timing) + ' min'
-    tg, emby, white = sql_count_emby()
+    tg, emby, white = await sql_count_emby()
     gm_text = f'⚙️ 欢迎您，亲爱的管理员 {call.from_user.first_name}\n\n' \
               f'· ®️ 注册状态 | **{stat}**\n' \
               f'· ⏳ 定时注册 | **{timing}**\n' \
@@ -40,7 +40,7 @@ async def open_menu(_, call):
     await callAnswer(call, '®️ register面板')
     # [开关，注册总数，定时注册] 此间只对emby表中tg用户进行统计
     stat, all_user, tem, timing = await open_check()
-    tg, emby, white = sql_count_emby()
+    tg, emby, white = await sql_count_emby()
     openstats = '✅' if stat else '❎'  # 三元运算
     timingstats = '❎' if timing == 0 else '✅'
     text = f'⚙ **注册状态设置**：\n\n- 自由注册即定量方式，定时注册既定时又定量，将自动转发消息至群组，再次点击按钮可提前结束并报告。\n' \
@@ -57,7 +57,7 @@ async def open_stats(_, call):
     if timing != 0:
         return await callAnswer(call, "🔴 目前正在运行定时注册。\n无法调用，请再次点击，【定时注册】关闭状态", True)
 
-    tg, emby, white = sql_count_emby()
+    tg, emby, white = await sql_count_emby()
     if stat:
         _open.stat = False
         save_config()
@@ -115,7 +115,7 @@ async def open_timing(_, call):
         except ValueError:
             await editMessage(call, "🚫 请检查数字填写是否正确。\n`[时长min] [总人数]`", buttons=back_open_menu_ikb)
         else:
-            tg, emby, white = sql_count_emby()
+            tg, emby, white = await sql_count_emby()
             sur = _open.all_user - emby
             await asyncio.gather(sendPhoto(call, photo=bot_photo,
                                            caption=f'🫧 管理员 {call.from_user.first_name} 已开启 **定时注册**\n\n'
@@ -275,13 +275,13 @@ async def cr_link(_, call):
 @bot.on_callback_query(filters.regex('ch_link') & admins_on_filter)
 async def ch_link(_, call):
     await callAnswer(call, '🔍 查看管理们注册码...时长会久一点', True)
-    a, b, c, d, f, e = sql_count_code()
+    a, b, c, d, f, e = await sql_count_code()
     text = f'**🎫 常用code数据：\n• 已使用 - {a}  | • 未使用 - {e}\n• 月码 - {b}   | • 季码 - {c} \n• 半年码 - {d}  | • 年码 - {f}**'
     ls = []
     admins.append(owner)
     for i in admins:
         name = await bot.get_chat(i)
-        a, b, c, d, f ,e= sql_count_code(i)
+        a, b, c, d, f ,e= await sql_count_code(i)
         text += f'\n👮🏻`{name.first_name}`: 月/{b}，季/{c}，半年/{d}，年/{f}，已用/{a}，未用/{e}'
         f = [f"🔎 {name.first_name}", f"ch_admin_link-{i}"]
         ls.append(f)
@@ -314,11 +314,11 @@ async def delete_unused_codes(_, call):
         
     try:
         if content.text.lower() == 'all':
-            count = sql_delete_all_unused()
+            count = await sql_delete_all_unused()
             text = f"已删除所有未使用码，共 {count} 个"
         else:
             days = [int(x) for x in content.text.split()]
-            count = sql_delete_unused_by_days(days)
+            count = await sql_delete_unused_by_days(days)
             text = f"已删除指定天数的未使用码，共 {count} 个"
         await content.delete()
     except ValueError:
@@ -336,7 +336,7 @@ async def ch_admin_link(client, call):
     if call.from_user.id != owner and call.from_user.id != i:
         return await callAnswer(call, '🚫 你怎么偷窥别人呀! 你又不是owner', True)
     await callAnswer(call, f'💫 管理员 {i} 的注册码')
-    a, b, c, d, f, e= sql_count_code(i)
+    a, b, c, d, f, e= await sql_count_code(i)
     name = await client.get_chat(i)
     text = f'**🎫 [{name.first_name}-{i}](tg://user?id={i})：\n• 已使用 - {a}  | • 未使用 - {e}\n• 月码 - {b}    | • 季码 - {c} \n• 半年码 - {d}  | • 年码 - {f}**'
     await editMessage(call, text, date_ikb(i))
@@ -349,7 +349,7 @@ async def buy_mon(_, call):
     await call.answer('✅ 显示注册码')
     cd, times, u = call.data.split('_')
     n = getattr(ExDate(), times)
-    a, i = sql_count_p_code(u, n)
+    a, i = await sql_count_p_code(u, n)
     if a is None:
         x = '**空**'
     else:
@@ -364,7 +364,7 @@ async def buy_mon(_, call):
 async def paginate_keyboard(_, call):
     j, mode = map(int, call.data.split(":")[1].split('_'))
     await callAnswer(call, f'好的，将为您翻到第 {j} 页')
-    a, b = sql_count_p_code(call.from_user.id, mode)
+    a, b = await sql_count_p_code(call.from_user.id, mode)
     keyboard = await cr_paginate(b, j, mode)
     text = a[j-1]
     await editMessage(call, f'🔎当前模式- **{mode}**天，检索出以下 **{b}**页链接：\n\n{text}', keyboard)

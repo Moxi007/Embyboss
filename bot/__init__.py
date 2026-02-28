@@ -74,7 +74,9 @@ LOGGER.info("配置文件加载完毕")
 # 执行数据库迁移
 from .sql_helper.sql_emby import migrate_add_game_stats_fields
 LOGGER.info("开始执行数据库迁移...")
-migrate_add_game_stats_fields()
+import asyncio
+loop = asyncio.get_event_loop()
+loop.run_until_complete(migrate_add_game_stats_fields())
 
 from pyrogram.types import BotCommand
 

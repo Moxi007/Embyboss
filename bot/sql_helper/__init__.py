@@ -1,27 +1,41 @@
 """
-初始化数据库
+初始化数据库（异步重构版）
 """
-from bot import db_host, db_user, db_pwd, db_name, db_port
-from sqlalchemy import create_engine
+import asyncio
+from bot import db_host, db_user, db_pwd, db_name, db_port, LOGGER
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker, scoped_session
 
-# 创建engine对象
-engine = create_engine(f"mysql+pymysql://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}?utf8mb4", echo=False,
-                       echo_pool=False,
-                       pool_size=16,
-                       pool_recycle=60 * 30,
-                       )
+# 创建异步 engine 对象 (使用 aiomysql 驱动)
+engine = create_async_engine(
+    f"mysql+aiomysql://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}?charset=utf8mb4",
+    echo=False,
+    echo_pool=False,
+    pool_size=16,
+    pool_recycle=60 * 30,
+)
 
 # 创建Base对象
 Base = declarative_base()
-Base.metadata.bind = engine
-Base.metadata.create_all(bind=engine, checkfirst=True)
+# 异步引擎下不能直接 bind=engine，需要在初始化表时绑定
 
+# 创建异步 Session 工厂
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False
+)
 
-# 调用sql_start()函数，返回一个Session对象
-def sql_start() -> scoped_session:
-    return scoped_session(sessionmaker(bind=engine, autoflush=False))
+# 提供一个类似之前上下文使用的Session对象或工厂
+# 注意：在异步环境下，应使用 async with AsyncSessionLocal() as session:
+Session = AsyncSessionLocal
 
+async def init_db():
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+        LOGGER.info("数据库表结构初始化成功")
+    except Exception as e:
+        LOGGER.error(f"数据库表结构初始化失败: {e}")
 
-Session = sql_start()

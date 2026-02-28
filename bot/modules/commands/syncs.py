@@ -46,7 +46,7 @@ async def sync_emby_group(_, msg):
         LOGGER.info(f"{sign_name} 执行了群组成员同步任务")
         # 减少api调用
         members = [member.user.id async for member in bot.get_chat_members(group[0])]
-        r = get_all_emby(Emby.lv == 'b')
+        r = await get_all_emby(Emby.lv == 'b')
         if not r:
             return await send.edit("⚡群组同步任务\n\n结束！搞毛，没有人。")
         a = b = 0
@@ -56,13 +56,13 @@ async def sync_emby_group(_, msg):
             b += 1
             if i.tg not in members:
                 if await emby.emby_del(emby_id=i.embyid):
-                    sql_update_emby(Emby.embyid == i.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
+                    await sql_update_emby(Emby.embyid == i.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
                                     ex=None)
                     tem_deluser()
                     a += 1
                     reply_text = f'{b}. #id{i.tg} - [{i.name}](tg://user?id={i.tg}) 删除\n'
                     LOGGER.info(reply_text)
-                    sql_delete_emby(tg=i.tg)
+                    await sql_delete_emby(tg=i.tg)
                 else:
                     reply_text = f'{b}. #id{i.tg} - [{i.name}](tg://user?id={i.tg}) 删除错误\n'
                     LOGGER.error(reply_text)
@@ -119,9 +119,9 @@ async def sync_emby_unbound(_, msg):
                 if v['Policy'] and not bool(v['Policy']['IsAdministrator']):
                     embyid = v['Id']
                     # 查询无异常，并且无sql记录
-                    e = sql_get_emby(embyid)
+                    e = await sql_get_emby(embyid)
                     if e is None:
-                        e1 = sql_get_emby2(name=embyid)
+                        e1 = await sql_get_emby2(name=embyid)
                         if e1 is None:
                             a += 1
                             if confirm_delete:
@@ -167,15 +167,15 @@ async def bindall_id(_, msg):
         b += 1
         Name = i["Name"]
         Emby_id = i["Id"]
-        e = sql_get_emby(tg=Name)
+        e = await sql_get_emby(tg=Name)
         if not e:
             unknow_txt += f'{Name}\n'
             continue
         ls.append([e.tg, Name, Emby_id])
-    if sql_update_embys(some_list=ls, method='bind'):
+    if await sql_update_embys(some_list=ls, method='bind'):
         # 更新收藏记录
         for i in ls:
-           favorites_updated = sql_update_favorites(condition=EmbyFavorites.embyname == i[1], embyid=i[2])
+           favorites_updated = await sql_update_favorites(condition=EmbyFavorites.embyname == i[1], embyid=i[2])
            if not favorites_updated:
                LOGGER.warning(f"用户 {i[1]} 的收藏记录更新失败，可能存在数据冲突")
                pass
@@ -195,7 +195,7 @@ async def bindall_id(_, msg):
 @bot.on_message(filters.command('embyadmin', prefixes) & admins_on_filter)
 async def reload_admins(_, msg):
     await deleteMessage(msg)
-    e = sql_get_emby(tg=msg.from_user.id)
+    e = await sql_get_emby(tg=msg.from_user.id)
     if e.embyid is not None:
         await emby.emby_change_policy(emby_id=e.embyid, admin=True)
         LOGGER.info(f"{msg.from_user.first_name} - {msg.from_user.id} 开启了 emby 后台")
@@ -224,7 +224,7 @@ async def clear_deleted_account(_, msg):
                 # and d.is_member or any(keyword in l.user.first_name for keyword in keywords) 关键词检索，没模板不加了
                 if d.user.is_deleted:
                     await msg.chat.ban_member(d.user.id)
-                    sql_delete_emby(tg=d.user.id)
+                    await sql_delete_emby(tg=d.user.id)
                     a += 1
                     # 打个注释，scheduler 默认出群就删号了，不需要再执行删除
                     text += f'{a}. `{d.user.id}` 已注销\n'
@@ -248,7 +248,7 @@ async def kick_not_emby(_, msg):
     if open_kick == 'true':
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
         LOGGER.info(f"{sign_name} 执行了踢出非emby用户的操作")
-        embyusers = get_all_emby(Emby.embyid is not None and Emby.embyid != '')
+        embyusers = await get_all_emby(Emby.embyid is not None and Emby.embyid != '')
         # get tgid
         embytgs = []
         if embyusers:
@@ -276,7 +276,7 @@ async def restore_from_db(_, msg):
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'    
         LOGGER.info(
             f"{sign_name} 执行了从数据库中恢复用户到Emby中的操作")
-        embyusers = get_all_emby(Emby.embyid is not None and Emby.embyid != '')
+        embyusers = await get_all_emby(Emby.embyid is not None and Emby.embyid != '')
         group_id = group[0]
         # 获取当前执行命令的群组成员
         chat_members = [member.user.id async for member in bot.get_chat_members(chat_id=group_id)]
@@ -295,10 +295,10 @@ async def restore_from_db(_, msg):
                         tg = embyuser.tg
                         embyid = data[0]
                         pwd = data[1]
-                        sql_update_emby(Emby.tg == tg, embyid=embyid, pwd=pwd)
+                        await sql_update_emby(Emby.tg == tg, embyid=embyid, pwd=pwd)
                         
                         # 更安全的收藏记录更新，带错误处理
-                        favorites_updated = sql_update_favorites(condition=EmbyFavorites.embyname == embyuser.name, embyid=embyid)
+                        favorites_updated = await sql_update_favorites(condition=EmbyFavorites.embyname == embyuser.name, embyid=embyid)
                         if not favorites_updated:
                             LOGGER.warning(f"用户 {embyuser.name} 的收藏记录更新失败，可能存在数据冲突")
                             text += f'**- ⚠️ 恢复用户：#id{embyuser.tg} - [{embyuser.name}](tg://user?id={embyuser.tg}) 成功，但收藏记录更新失败\n**'
@@ -336,7 +336,7 @@ async def scan_embyname(_, msg):
         f"{sign_name} 执行了扫描重复用户名操作")
 
     # 获取所有有效的emby用户
-    emby_users = get_all_emby(Emby.name is not None)
+    emby_users = await get_all_emby(Emby.name is not None)
     if not emby_users:
         return await send.edit("⚡扫描重复用户名任务\n\n结束！数据库中没有用户。")
 
@@ -393,7 +393,7 @@ async def unban_all_users(_, msg):
         success, allusers = await emby.users()
         if not success or allusers is None:
             return await send.edit("⚡解除禁用任务\n\n结束！获取 Emby 用户列表失败。")
-        allusers_in_db = get_all_emby(Emby.name is not None)
+        allusers_in_db = await get_all_emby(Emby.name is not None)
         
         unban_user_in_bot_count = unban_user_in_emby_count = index = 0
         text = ''
@@ -426,7 +426,7 @@ async def unban_all_users(_, msg):
                         continue
                     # 更新数据库状态为正常（lv='b'）
                     index += 1
-                    if sql_update_emby(Emby.tg == db_user.tg, lv='b'):
+                    if await sql_update_emby(Emby.tg == db_user.tg, lv='b'):
                         unban_user_in_bot_count += 1
                         reply_text = f'{index}. [{emby_name}](tg://user?id={db_user.tg}) - #id{db_user.tg} 解禁成功\n'
                         LOGGER.info(reply_text)
@@ -486,7 +486,7 @@ async def ban_all_users(_, msg):
         success, allusers = await emby.users()
         if not success or allusers is None:
             return await send.edit("⚡禁用所有用户任务\n\n结束！获取 Emby 用户列表失败。")
-        allusers_in_db = get_all_emby(Emby.name is not None)
+        allusers_in_db = await get_all_emby(Emby.name is not None)
         ban_user_in_bot_count = ban_user_in_emby_count = index = 0
         text = ''
         start = time.perf_counter()
@@ -519,7 +519,7 @@ async def ban_all_users(_, msg):
                         continue
                     index += 1
                     # 更新数据库状态为禁用（lv='c'）
-                    if sql_update_emby(Emby.tg == db_user.tg, lv='c'):
+                    if await sql_update_emby(Emby.tg == db_user.tg, lv='c'):
                         ban_user_in_bot_count += 1
                         reply_text = f'{index}. [{emby_name}](tg://user?id={db_user.tg}) - #id{db_user.tg} 禁用成功\n'
                         LOGGER.info(reply_text)
@@ -576,7 +576,7 @@ async def delete_all_users(_, msg):
         success, allusers = await emby.users()
         if not success or allusers is None:
             return await send.edit("⚡跑路命令任务\n\n结束！获取 Emby 用户列表失败。")
-        allusers_in_db = get_all_emby(Emby.name is not None)
+        allusers_in_db = await get_all_emby(Emby.name is not None)
         
         delete_user_in_emby_count = delete_user_in_bot_count = index = 0
         text = ''
@@ -600,9 +600,9 @@ async def delete_all_users(_, msg):
                         continue
                     # 优先使用tg（主键）删除，如果embyid存在也一起使用
                     if db_user.embyid:
-                        delete_result = sql_delete_emby(tg=db_user.tg, embyid=db_user.embyid)
+                        delete_result = await sql_delete_emby(tg=db_user.tg, embyid=db_user.embyid)
                     else:
-                        delete_result = sql_delete_emby(tg=db_user.tg)
+                        delete_result = await sql_delete_emby(tg=db_user.tg)
                     if delete_result:
                         delete_user_in_bot_count += 1
                         reply_text = f'{index}. [{emby_name}](tg://user?id={db_user.tg}) - #id{db_user.tg} 已删除\n'

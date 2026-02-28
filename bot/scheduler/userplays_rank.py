@@ -91,7 +91,7 @@ class Uplaysinfo:
         play_button = await plays_list_button(n, 1, days)
         send = await bot.send_photo(chat_id=group[0], photo=bot_photo, caption=a[0], reply_markup=play_button)
         if uplays and _open.uplays:
-            if sql_update_embys(some_list=ls, method='iv'):
+            if await sql_update_embys(some_list=ls, method='iv'):
                 text = f'**自动将观看时长转换为{sakura_b}**\n\n'
                 for i in ls:
                     text += f'[{i[2]}](tg://user?id={i[0]}) 获得了 {i[3]} {sakura_b}奖励\n'
@@ -116,7 +116,7 @@ class Uplaysinfo:
         msg = f'正在执行**{activity_check_days}天活跃检测**...\n'
         for user in users:
             # 数据库先找
-            e = sql_get_emby(tg=user["Name"])
+            e = await sql_get_emby(tg=user["Name"])
             if e is None:
                 continue
 
@@ -128,7 +128,7 @@ class Uplaysinfo:
                 finally:
                     if ac_date == "None" or ac_date + timedelta(days=15) < now:
                         if await emby.emby_del(emby_id=e.embyid):
-                            sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d',
+                            await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d',
                                             cr=None, ex=None)
                             tem_deluser()
                             msg += f'**🔋活跃检测** - [{e.name}](tg://user?id={e.tg})\n#id{e.tg} 禁用后未解禁，已执行删除。\n\n'
@@ -143,7 +143,7 @@ class Uplaysinfo:
                     # print(e.name, ac_date, now)
                     if ac_date + timedelta(days=activity_check_days) < now:
                         if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
-                            sql_update_emby(Emby.embyid == user["Id"], lv='c')
+                            await sql_update_emby(Emby.embyid == user["Id"], lv='c')
                             msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} {activity_check_days}天未活跃，禁用\n\n"
                             LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：{activity_check_days}天未活跃")
                         else:
@@ -151,7 +151,7 @@ class Uplaysinfo:
                             LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：禁用失败啦！检查emby连通性")
                 except KeyError:
                     if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
-                        sql_update_emby(Emby.embyid == user["Id"], lv='c')
+                        await sql_update_emby(Emby.embyid == user["Id"], lv='c')
                         msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 注册后未活跃，禁用\n\n"
                         LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：注册后未活跃禁用")
                     else:

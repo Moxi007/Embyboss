@@ -21,7 +21,7 @@ async def ban_playlist(eid: str):
     if not eid:
         return {"user_id": None, "embyid": None, "is_baned": False}
 
-    user = sql_get_emby(eid)
+    user = await sql_get_emby(eid)
     if user is None:
         details = ''
         if await emby.emby_change_policy(emby_id=eid, disable=True):
@@ -45,7 +45,7 @@ async def ban_playlist(eid: str):
         try:
             out = await bot.send_message(group[0], text)
             await out.forward(user.tg)
-            sql_update_emby(Emby.tg == info["user_id"], lv='c')
+            await sql_update_emby(Emby.tg == info["user_id"], lv='c')
         except Exception as e:
             text += e
 
