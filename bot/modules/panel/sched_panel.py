@@ -158,12 +158,9 @@ async def restart_bot(_, msg):
     config.schedall.restart_chat_id = send.chat.id
     config.schedall.restart_msg_id = send.id
     save_config()
-    try:
-        # some code here
-        LOGGER.info("重启")
-        os.execl('/bin/systemctl', 'systemctl', 'restart', 'embyboss')  # 用当前进程执行systemctl命令，重启embyboss服务
-    except FileNotFoundError:
-        exit(1)
+    LOGGER.info("手动重启")
+    import sys
+    sys.exit(1)
 
 
 @bot.on_callback_query(filters.regex('uranks') & user_in_group_on_filter)
@@ -240,13 +237,15 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
                     config.auto_update.up_description = up_description
                     save_config()
                     
-                    # 强力重置并依托外部守护进程（Docker/Systemd）拉起
-                    try:
-                        os.execl(executable, executable, *argv)
-                    except Exception as e:
-                        LOGGER.error(f"execl 模块重载失败: {e}，尝试使用 exit(1) 依托外部守护进程重启")
-                        import sys
-                        sys.exit(1)
+                    # 清除 Python 字节码缓存，确保重启后加载新代码
+                    await execute("find /app -type f -name '*.pyc' -delete")
+                    await execute("find /app -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true")
+                    
+                    # 直接退出进程，由 Docker/start.sh 负责完整拉起
+                    # 不使用 os.execl，因为它会继承 Python 的模块缓存导致新代码不生效
+                    import sys
+                    LOGGER.info("更新完成，正在退出进程以触发 Docker 重启...")
+                    sys.exit(1)
                 else:
                     message = "【AutoUpdate_Bot】运行成功，未检测到更新，结束"
                     await bot.send_message(chat_id=config.group[0], text=message) if not msg else await msg.edit(message)
