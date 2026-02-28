@@ -6,7 +6,7 @@
 import random
 import asyncio
 from pyrogram import filters
-from pyrogram.errors import BadRequest
+from pyrogram.errors import BadRequest, PeerIdInvalid
 
 from bot import LOGGER, bot, config, prefixes, save_config
 from bot.func_helper.filters import admins_on_filter
@@ -24,14 +24,17 @@ async def pro_admin(_, msg):
         try:
             uid = int(msg.text.split()[1])
             first = await bot.get_chat(uid)
-        except (IndexError, KeyError, BadRequest):
+        except (IndexError, KeyError, BadRequest, PeerIdInvalid):
             await deleteMessage(msg)
             return await sendMessage(msg,
                                      '**请先给我一个正确的id！**\n输入格式为：/proadmin [tgid]或**命令回复想要授权的人**',
                                      timer=60)
     else:
         uid = msg.reply_to_message.from_user.id
-        first = await bot.get_chat(uid)
+        try:
+            first = await bot.get_chat(uid)
+        except (PeerIdInvalid, BadRequest):
+            first = msg.reply_to_message.from_user
     if uid not in config.admins:
         config.admins.append(uid)
         save_config()
@@ -61,14 +64,17 @@ async def pro_user(_, msg):
                 uid = None
                 username = param
                 query_by_username = True
-        except (IndexError, KeyError, BadRequest):
+        except (IndexError, KeyError, BadRequest, PeerIdInvalid):
             await deleteMessage(msg)
             return await sendMessage(msg,
                                      '**请先给我一个正确的id或用户名！**\n输入格式为：/prouser [tgid/username]或**命令回复想要授权的人**',
                                      timer=60)
     else:
         uid = msg.reply_to_message.from_user.id
-        first = await bot.get_chat(uid)
+        try:
+            first = await bot.get_chat(uid)
+        except (PeerIdInvalid, BadRequest):
+            first = msg.reply_to_message.from_user
         query_by_username = False
     
     if query_by_username:
@@ -122,7 +128,7 @@ async def del_admin(_, msg):
         try:
             uid = int(msg.text.split()[1])
             first = await bot.get_chat(uid)
-        except (IndexError, KeyError, BadRequest):
+        except (IndexError, KeyError, BadRequest, PeerIdInvalid):
             await deleteMessage(msg)
             return await sendMessage(msg,
                                      '**请先给我一个正确的id！**\n输入格式为：/revadmin [tgid]或**命令回复想要取消授权的人**',
@@ -130,7 +136,10 @@ async def del_admin(_, msg):
 
     else:
         uid = msg.reply_to_message.from_user.id
-        first = await bot.get_chat(uid)
+        try:
+            first = await bot.get_chat(uid)
+        except (PeerIdInvalid, BadRequest):
+            first = msg.reply_to_message.from_user
     if uid in config.admins:
         config.admins.remove(uid)
         save_config()
@@ -156,14 +165,17 @@ async def rev_user(_, msg):
                 uid = None
                 username = param
                 query_by_username = True
-        except (IndexError, KeyError, BadRequest):
+        except (IndexError, KeyError, BadRequest, PeerIdInvalid):
             await deleteMessage(msg)
             return await msg.reply(
                 '**请先给我一个正确的id或用户名！**\n输入格式为：/revuser [tgid/username]或**命令回复想要取消授权的人**')
 
     else:
         uid = msg.reply_to_message.from_user.id
-        first = await bot.get_chat(uid)
+        try:
+            first = await bot.get_chat(uid)
+        except (PeerIdInvalid, BadRequest):
+            first = msg.reply_to_message.from_user
         query_by_username = False
     
     if query_by_username:

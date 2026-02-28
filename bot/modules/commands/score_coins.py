@@ -8,7 +8,7 @@ coins +-
 import asyncio
 from bot.schemas import MAX_INT_VALUE, MIN_INT_VALUE
 from pyrogram import filters
-from pyrogram.errors import BadRequest
+from pyrogram.errors import BadRequest, PeerIdInvalid
 from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.msg_utils import sendMessage, deleteMessage
@@ -23,7 +23,7 @@ async def get_user_input(msg):
             uid = int(msg.command[1])
             b = int(msg.command[2])
             first = await bot.get_chat(uid)
-        except (IndexError, KeyError, BadRequest, ValueError, AttributeError):
+        except (IndexError, KeyError, BadRequest, ValueError, AttributeError, PeerIdInvalid):
             await deleteMessage(msg)
             return None, None, None, gm_name
     else:

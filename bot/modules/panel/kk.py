@@ -4,7 +4,7 @@ kk - 纯装x
 """
 import pyrogram
 from pyrogram import filters
-from pyrogram.errors import BadRequest
+from pyrogram.errors import BadRequest, PeerIdInvalid
 from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.emby import emby
 from bot.func_helper.filters import admins_on_filter
@@ -67,12 +67,16 @@ async def kk_user_ban(_, call):
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决",
                                  timer=60)
 
-    first = await bot.get_chat(b)
+    try:
+        first = await bot.get_chat(b)
+        first_name = first.first_name
+    except (PeerIdInvalid, BadRequest):
+        first_name = f"用户({b})"
     e = await sql_get_emby(tg=b)
     if e.embyid is None:
         await editMessage(call, f'💢 ta 没有注册账户。', timer=60)
     else:
-        text = f'🎯 管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id}) 对 [{first.first_name}](tg://user?id={b}) - {e.name} 的'
+        text = f'🎯 管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id}) 对 [{first_name}](tg://user?id={b}) - {e.name} 的'
         if e.lv != "c":
             if await emby.emby_change_policy(emby_id=e.embyid, disable=True) is True:
                 if await sql_update_emby(Emby.tg == b, lv='c') is True:
@@ -171,14 +175,18 @@ async def gift(_, call):
         return await editMessage(call,
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决")
 
-    first = await bot.get_chat(b)
+    try:
+        first = await bot.get_chat(b)
+        first_name = first.first_name
+    except (PeerIdInvalid, BadRequest):
+        first_name = f"用户({b})"
     e = await sql_get_emby(tg=b)
     if e.embyid is None:
         link = await cr_link_two(tg=call.from_user.id, for_tg=b, days=config.kk_gift_days)
         await editMessage(call, f"🌟 好的，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n"
-                                f'已为 [{first.first_name}](tg://user?id={b}) 赠予资格。前往bot进行下一步操作：',
+                                f'已为 [{first_name}](tg://user?id={b}) 赠予资格。前往bot进行下一步操作：',
                           buttons=gog_rester_ikb(link))
-        LOGGER.info(f"【admin】：{call.from_user.id} 已发送 注册资格 {first.first_name} - {b} ")
+        LOGGER.info(f"【admin】：{call.from_user.id} 已发送 注册资格 {first_name} - {b} ")
     else:
         await editMessage(call, f'💢 [ta](tg://user?id={b}) 已注册账户。')
 
@@ -196,7 +204,11 @@ async def close_emby(_, call):
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决",
                                  timer=60)
 
-    first = await bot.get_chat(b)
+    try:
+        first = await bot.get_chat(b)
+        first_name = first.first_name
+    except (PeerIdInvalid, BadRequest):
+        first_name = f"用户({b})"
     e = await sql_get_emby(tg=b)
     if e.embyid is None:
         return await editMessage(call, f'💢 ta 还没有注册账户。', timer=60)
@@ -205,13 +217,16 @@ async def close_emby(_, call):
         await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
         tem_deluser()
         await editMessage(call,
-                          f'🎯 done，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n等级：{e.lv} - [{first.first_name}](tg://user?id={b}) '
+                          f'🎯 done，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n等级：{e.lv} - [{first_name}](tg://user?id={b}) '
                           f'账户 {e.name} 已完成删除。')
-        await bot.send_message(b,
-                               f"🎯 管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id}) 已删除 您 的账户 {e.name}")
+        try:
+            await bot.send_message(b,
+                                   f"🎯 管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id}) 已删除 您 的账户 {e.name}")
+        except Exception:
+            pass
         LOGGER.info(f"【admin】：{call.from_user.id} 完成删除 {b} 的账户 {e.name}")
     else:
-        await editMessage(call, f'🎯 done，等级：{e.lv} - {first.first_name}的账户 {e.name} 删除失败。')
+        await editMessage(call, f'🎯 done，等级：{e.lv} - {first_name}的账户 {e.name} 删除失败。')
         LOGGER.info(f"【admin】：{call.from_user.id} 对 {b} 的账户 {e.name} 删除失败 ")
 
 

@@ -10,6 +10,7 @@ from bot.func_helper.msg_utils import sendMessage, sendPhoto
 from bot.sql_helper.sql_code import Code
 from bot.sql_helper.sql_emby import sql_get_emby, Emby
 from bot.sql_helper import Session
+from pyrogram.errors import PeerIdInvalid
 
 
 def is_renew_code(input_string):
@@ -47,7 +48,11 @@ async def rgs_code(_, msg, register_code):
                                                  f'此 `{register_code}` \n续期码已被使用,是[{used}](tg://user?id={used})的形状了喔')
             session.query(Code).filter(Code.code == register_code).with_for_update().update(
                 {Code.used: msg.from_user.id, Code.usedtime: datetime.now()})
-            first = await bot.get_chat(tg1)
+            try:
+                first = await bot.get_chat(tg1)
+                first_name = first.first_name
+            except (PeerIdInvalid, Exception):
+                first_name = f"用户({tg1})"
             # 此处需要写一个判断 now和ex的大小比较。进行日期加减。
             ex_new = datetime.now()
             if ex_new > ex:
@@ -57,13 +62,13 @@ async def rgs_code(_, msg, register_code):
                     session.query(Emby).filter(Emby.tg == msg.from_user.id).update({Emby.ex: ex_new, Emby.lv: 'b'})
                 else:
                     session.query(Emby).filter(Emby.tg == msg.from_user.id).update({Emby.ex: ex_new})
-                await sendMessage(msg, f'🎊 少年郎，恭喜你，已收到 [{first.first_name}](tg://user?id={tg1}) 的{us1}天🎁\n'
+                await sendMessage(msg, f'🎊 少年郎，恭喜你，已收到 [{first_name}](tg://user?id={tg1}) 的{us1}天🎁\n'
                                        f'__已解封账户并延长到期时间至(以当前时间计)__\n到期时间：{ex_new.strftime("%Y-%m-%d %H:%M:%S")}')
             elif ex_new < ex:
                 ex_new = data.ex + timedelta(days=us1)
                 session.query(Emby).filter(Emby.tg == msg.from_user.id).update({Emby.ex: ex_new})
                 await sendMessage(msg,
-                                  f'🎊 少年郎，恭喜你，已收到 [{first.first_name}](tg://user?id={tg1}) 的{us1}天🎁\n到期时间：{ex_new}__')
+                                  f'🎊 少年郎，恭喜你，已收到 [{first_name}](tg://user?id={tg1}) 的{us1}天🎁\n到期时间：{ex_new}__')
             session.commit()
             new_code = register_code[:-7] + "░" * 7
             await sendMessage(msg,
@@ -94,12 +99,16 @@ async def rgs_code(_, msg, register_code):
             used = r.used
             if re == 0: return await sendMessage(msg,
                                                  f'此 `{register_code}` \n注册码已被使用,是 [{used}](tg://user?id={used}) 的形状了喔')
-            first = await bot.get_chat(tg1)
+            try:
+                first = await bot.get_chat(tg1)
+                first_name = first.first_name
+            except (PeerIdInvalid, Exception):
+                first_name = f"用户({tg1})"
             x = data.us + us1
             session.query(Emby).filter(Emby.tg == msg.from_user.id).update({Emby.us: x})
             session.commit()
             await sendPhoto(msg, photo=config.bot_photo,
-                            caption=f'🎊 少年郎，恭喜你，已经收到了 [{first.first_name}](tg://user?id={tg1}) 发送的邀请注册资格\n\n请选择你的选项~',
+                            caption=f'🎊 少年郎，恭喜你，已经收到了 [{first_name}](tg://user?id={tg1}) 发送的邀请注册资格\n\n请选择你的选项~',
                             buttons=register_code_ikb)
             new_code = register_code[:-7] + "░" * 7
             await sendMessage(msg,

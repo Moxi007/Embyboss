@@ -1,4 +1,5 @@
 from pyrogram import filters
+from pyrogram.errors import PeerIdInvalid
 
 from bot import bot, prefixes, LOGGER
 from bot.func_helper.emby import emby
@@ -29,20 +30,24 @@ async def rmemby_user(_, msg):
         return await reply.edit(f"♻️ 没有检索到 {b} 账户，请确认重试或手动检查。")
 
     if e.embyid is not None:
-        first = await bot.get_chat(e.tg)
+        try:
+            first = await bot.get_chat(e.tg)
+            first_name = first.first_name
+        except (PeerIdInvalid, Exception):
+            first_name = f"用户({e.tg})"
         if await emby.emby_del(emby_id=e.embyid):
             await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
             tem_deluser()
             sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
             try:
                 await reply.edit(
-                    f'🎯 done，管理员  {sign_name} 已将 [{first.first_name}](tg://user?id={e.tg}) 账户 {e.name} 删除。')
+                    f'🎯 done，管理员  {sign_name} 已将 [{first_name}](tg://user?id={e.tg}) 账户 {e.name} 删除。')
                 await bot.send_message(e.tg,
                                        f'🎯 done，管理员 {sign_name} 已将 您的账户 {e.name} 删除。')
             except:
                 pass
             LOGGER.info(
-                f"【admin】：管理员 {sign_name} 执行删除 {first.first_name}-{e.tg} 账户 {e.name}")
+                f"【admin】：管理员 {sign_name} 执行删除 {first_name}-{e.tg} 账户 {e.name}")
     else:
         await reply.edit(f"💢 [ta](tg://user?id={b}) 还没有注册账户呢")
 @bot.on_message(filters.command('only_rm_record', prefixes) & admins_on_filter)
