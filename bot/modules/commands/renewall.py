@@ -8,7 +8,7 @@ from datetime import timedelta
 from pyrogram import filters
 from pyrogram.errors import FloodWait
 from sqlalchemy import or_
-from bot import bot, prefixes, bot_photo, LOGGER, sakura_b
+from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.msg_utils import sendMessage, deleteMessage, ask_return
 from bot.func_helper.filters import admins_on_filter
 from bot.sql_helper.sql_emby import get_all_emby, Emby, sql_update_embys, sql_clear_emby_iv
@@ -24,7 +24,7 @@ async def renew_all(_, msg):
         return await sendMessage(msg,
                                  "🔔 **使用格式：**/renewall [+/-天数]\n\n  给所有未封禁emby [+/-天数]", timer=60)
 
-    send = await bot.send_photo(msg.chat.id, photo=bot_photo, caption="⚡【派送任务】\n  **正在开启派送中...请稍后**")
+    send = await bot.send_photo(msg.chat.id, photo=config.bot_photo, caption="⚡【派送任务】\n  **正在开启派送中...请稍后**")
     rst = await get_all_emby(Emby.lv == 'b')
     if rst is None:
         LOGGER.info(
@@ -70,13 +70,13 @@ async def coins_all(_, msg):
             send_msg = send_msg_param == 'true'
     except (IndexError, ValueError):
         return await sendMessage(msg,
-                                 f"🔔 **使用格式：**/coinsall [+/-数量] [等级] [发送消息]\n\n给指定等级的用户 [+/- {sakura_b}]\n示例： `/coinsall 100 b` 给所有b级用户加100{sakura_b}\n示例： `/coinsall 100 b true` 给所有b级用户加100{sakura_b}并私发消息\n等级说明:\na- 白名单账户\nb- 正常账户\nc- 已封禁账户\n发送消息参数：true 表示发送私信，默认不发送\n", timer=60)
-    send = await bot.send_photo(msg.chat.id, photo=bot_photo,
-                                caption=f"⚡【{sakura_b}任务】\n  **正在开启派送{sakura_b}中...请稍后**")
+                                 f"🔔 **使用格式：**/coinsall [+/-数量] [等级] [发送消息]\n\n给指定等级的用户 [+/- {config.money}]\n示例： `/coinsall 100 b` 给所有b级用户加100{config.money}\n示例： `/coinsall 100 b true` 给所有b级用户加100{config.money}并私发消息\n等级说明:\na- 白名单账户\nb- 正常账户\nc- 已封禁账户\n发送消息参数：true 表示发送私信，默认不发送\n", timer=60)
+    send = await bot.send_photo(msg.chat.id, photo=config.bot_photo,
+                                caption=f"⚡【{config.money}任务】\n  **正在开启派送{config.money}中...请稍后**")
     rst = await get_all_emby(Emby.lv == lv)
     if rst is None:
         LOGGER.info(
-            f"【{sakura_b}任务】 -{msg.from_user.first_name}({msg.from_user.id}) 没有检测到任何emby账户，结束")
+            f"【{config.money}任务】 -{msg.from_user.first_name}({msg.from_user.id}) 没有检测到任何emby账户，结束")
         return await send.edit("⚡【派送任务】\n\n结束，没有一个有号的")
 
     b = 0
@@ -92,29 +92,29 @@ async def coins_all(_, msg):
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
         if send_msg:
             await send.edit(
-                f"⚡【{sakura_b}任务】\n\n  批量派出 {coin} {sakura_b} * {b} ，耗时：{times:.3f}s\n 已到账，正在向每个拥有emby的用户私发消息，短时间内请不要重复使用")
+                f"⚡【{config.money}任务】\n\n  批量派出 {coin} {config.money} * {b} ，耗时：{times:.3f}s\n 已到账，正在向每个拥有emby的用户私发消息，短时间内请不要重复使用")
         else:
             await send.edit(
-                f"⚡【{sakura_b}任务】\n\n  批量派出 {coin} {sakura_b} * {b} ，耗时：{times:.3f}s\n 已到账")
+                f"⚡【{config.money}任务】\n\n  批量派出 {coin} {config.money} * {b} ，耗时：{times:.3f}s\n 已到账")
         LOGGER.info(
-            f"【派送{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 派出 {coin} * {b} 更改用时{times:.3f} s")
+            f"【派送{config.money}任务】 - {sign_name}({msg.from_user.id}) 派出 {coin} * {b} 更改用时{times:.3f} s")
         
         # 根据参数决定是否发送私信
         if send_msg:
             for l in ls:
                 try:
-                    await bot.send_message(l[0], f"🎯 管理员 {sign_name} 调节了您的账户{sakura_b} {coin}"
+                    await bot.send_message(l[0], f"🎯 管理员 {sign_name} 调节了您的账户{config.money} {coin}"
                                              f'\n📅 实时数量：{l[1]}')
                 except FloodWait as f:
                     LOGGER.warning(str(f))
                     await asyncio.sleep(f.value * 1.2)
-                    await bot.send_message(l[0], f"🎯 管理员 {sign_name} 调节了您的账户{sakura_b} {coin}"
+                    await bot.send_message(l[0], f"🎯 管理员 {sign_name} 调节了您的账户{config.money} {coin}"
                                              f'\n📅 实时数量：{l[1]}')
                 except Exception as e:
-                    LOGGER.error(f"派送{sakura_b}任务失败：{l[0]} {e}")
+                    LOGGER.error(f"派送{config.money}任务失败：{l[0]} {e}")
                     continue
             LOGGER.info(
-                f"【派送{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 派出 {coin} {sakura_b} * {b}，消息私发完成")
+                f"【派送{config.money}任务】 - {sign_name}({msg.from_user.id}) 派出 {coin} {config.money} * {b}，消息私发完成")
     else:
         await msg.reply("数据库操作出错，请检查重试")
 
@@ -138,26 +138,26 @@ async def coinsclear(_, msg):
     
     # 清除所有用户币币
     if level_param == 'all':
-        send = await bot.send_photo(msg.chat.id, photo=bot_photo,
-                                caption=f"⚡【{sakura_b}任务】\n  **正在清除所有用户币币...请稍后**")
+        send = await bot.send_photo(msg.chat.id, photo=config.bot_photo,
+                                caption=f"⚡【{config.money}任务】\n  **正在清除所有用户币币...请稍后**")
         rst = await sql_clear_emby_iv()
         if rst:
-            await send.edit(f"⚡【{sakura_b}任务】\n\n  清除所有用户币币完成")
-            LOGGER.info(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 清除所有用户币币完成")
+            await send.edit(f"⚡【{config.money}任务】\n\n  清除所有用户币币完成")
+            LOGGER.info(f"【清除{config.money}任务】 - {sign_name}({msg.from_user.id}) 清除所有用户币币完成")
         else:
-            await send.edit(f"⚡【{sakura_b}任务】\n\n  清除所有用户币币失败")
-            LOGGER.error(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 清除所有用户币币失败")
+            await send.edit(f"⚡【{config.money}任务】\n\n  清除所有用户币币失败")
+            LOGGER.error(f"【清除{config.money}任务】 - {sign_name}({msg.from_user.id}) 清除所有用户币币失败")
     # 根据等级清除币币
     elif level_param in ['a', 'b', 'c', 'd']:
         lv = level_param
-        send = await bot.send_photo(msg.chat.id, photo=bot_photo,
-                                caption=f"⚡【{sakura_b}任务】\n  **正在清除{lv}级用户币币...请稍后**")
+        send = await bot.send_photo(msg.chat.id, photo=config.bot_photo,
+                                caption=f"⚡【{config.money}任务】\n  **正在清除{lv}级用户币币...请稍后**")
         
         # 获取指定等级的所有用户
         rst = await get_all_emby(Emby.lv == lv)
         if rst is None or len(rst) == 0:
-            LOGGER.info(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 没有检测到{lv}级用户")
-            return await send.edit(f"⚡【{sakura_b}任务】\n\n  没有检测到{lv}级用户")
+            LOGGER.info(f"【清除{config.money}任务】 - {sign_name}({msg.from_user.id}) 没有检测到{lv}级用户")
+            return await send.edit(f"⚡【{config.money}任务】\n\n  没有检测到{lv}级用户")
         
         # 批量将币币设置为0
         ls = []
@@ -166,11 +166,11 @@ async def coinsclear(_, msg):
         
         if await sql_update_embys(some_list=ls, method='iv'):
             count = len(ls)
-            await send.edit(f"⚡【{sakura_b}任务】\n\n  清除{lv}级用户币币完成\n  共清除 {count} 个用户")
-            LOGGER.info(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 清除{lv}级用户币币完成，共 {count} 个用户")
+            await send.edit(f"⚡【{config.money}任务】\n\n  清除{lv}级用户币币完成\n  共清除 {count} 个用户")
+            LOGGER.info(f"【清除{config.money}任务】 - {sign_name}({msg.from_user.id}) 清除{lv}级用户币币完成，共 {count} 个用户")
         else:
-            await send.edit(f"⚡【{sakura_b}任务】\n\n  清除{lv}级用户币币失败")
-            LOGGER.error(f"【清除{sakura_b}任务】 - {sign_name}({msg.from_user.id}) 清除{lv}级用户币币失败")
+            await send.edit(f"⚡【{config.money}任务】\n\n  清除{lv}级用户币币失败")
+            LOGGER.error(f"【清除{config.money}任务】 - {sign_name}({msg.from_user.id}) 清除{lv}级用户币币失败")
     else:
         return await sendMessage(msg,
                                  f"🔔 **使用格式：**\n\n`/coinsclear [等级/all] true`\n\n⚠️ 等级参数必须是：`all`、`a`、`b`、`c` 或 `d`\n\n等级说明:\na- 白名单账户\nb - 正常账户\nc- 已封禁账户\nd- 无账号用户\n\n示例：\n`/coinsclear all true` - 清除所有用户币币\n`/coinsclear b true` - 清除b级用户币币", timer=60)

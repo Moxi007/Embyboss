@@ -7,7 +7,7 @@ from datetime import date
 from bot.func_helper.utils import convert_s
 from bot.func_helper.emby import emby
 from bot.ranks_helper import ranks_draw
-from bot import bot, group, ranks, LOGGER, schedall, save_config
+from bot import LOGGER, bot, config, save_config
 from bot.func_helper.utils import split_long_message
 
 
@@ -60,7 +60,7 @@ async def send_multi_message(chat_id, photo_path, caption, parse_mode, pin_first
 
 
 async def day_ranks(pin_mode=True):
-    draw = ranks_draw.RanksDraw(ranks.logo, backdrop=ranks.backdrop)
+    draw = ranks_draw.RanksDraw(config.ranks.logo, backdrop=config.ranks.backdrop)
     LOGGER.info("【ranks_task】定时任务 正在推送日榜")
     success, movies = await emby.get_emby_report(types='Movie', days=1)
     if not success:
@@ -76,7 +76,7 @@ async def day_ranks(pin_mode=True):
 
     try:
         if pin_mode:
-            await bot.unpin_chat_message(chat_id=group[0], message_id=schedall.day_ranks_message_id)
+            await bot.unpin_chat_message(chat_id=config.group[0], message_id=config.schedall.day_ranks_message_id)
     except Exception as e:
         LOGGER.warning(f'【ranks_task】unpin day_ranks_message exception {e}')
         pass
@@ -96,11 +96,11 @@ async def day_ranks(pin_mode=True):
             tmp += str(i + 1) + ". " + name + "\n播放次数: " + str(count) + "  时长:" + time + "\n"
         payload += tmp
     
-    payload = f"**【{ranks.logo} 播放日榜】**\n\n" + payload + "\n#DayRanks" + "  " + date.today().strftime('%Y-%m-%d')
+    payload = f"**【{config.ranks.logo} 播放日榜】**\n\n" + payload + "\n#DayRanks" + "  " + date.today().strftime('%Y-%m-%d')
     
     # 使用多消息发送功能
     sent_messages = await send_multi_message(
-        chat_id=group[0], 
+        chat_id=config.group[0], 
         photo_path=path, 
         caption=payload,
         parse_mode=enums.ParseMode.MARKDOWN,
@@ -108,13 +108,13 @@ async def day_ranks(pin_mode=True):
     )
     
     # 保存第一条消息的ID用于后续取消置顶
-    schedall.day_ranks_message_id = sent_messages[0].id
+    config.schedall.day_ranks_message_id = sent_messages[0].id
     save_config()
     LOGGER.info("【ranks_task】定时任务 推送日榜完成")
 
 
 async def week_ranks(pin_mode=True):
-    draw = ranks_draw.RanksDraw(ranks.logo, weekly=True, backdrop=ranks.backdrop)
+    draw = ranks_draw.RanksDraw(config.ranks.logo, weekly=True, backdrop=config.ranks.backdrop)
     LOGGER.info("【ranks_task】定时任务 正在推送周榜")
     success, movies = await emby.get_emby_report(types='Movie', days=7)
     if not success:
@@ -130,7 +130,7 @@ async def week_ranks(pin_mode=True):
 
     try:
         if pin_mode:
-            await bot.unpin_chat_message(chat_id=group[0], message_id=schedall.week_ranks_message_id)
+            await bot.unpin_chat_message(chat_id=config.group[0], message_id=config.schedall.week_ranks_message_id)
     except Exception as e:
         LOGGER.warning(f'【ranks_task】unpin week_ranks_message exception {e}')
         pass
@@ -151,11 +151,11 @@ async def week_ranks(pin_mode=True):
             tmp += str(i + 1) + ". " + name + "\n播放次数: " + str(count) + "  时长:" + time + "\n"
         payload += tmp
     
-    payload = f"**【{ranks.logo} 播放周榜】**\n\n" + payload + "\n#WeekRanks" + "  " + date.today().strftime('%Y-%m-%d')
+    payload = f"**【{config.ranks.logo} 播放周榜】**\n\n" + payload + "\n#WeekRanks" + "  " + date.today().strftime('%Y-%m-%d')
     
     # 使用多消息发送功能
     sent_messages = await send_multi_message(
-        chat_id=group[0], 
+        chat_id=config.group[0], 
         photo_path=path, 
         caption=payload,
         parse_mode=enums.ParseMode.MARKDOWN,
@@ -163,6 +163,6 @@ async def week_ranks(pin_mode=True):
     )
     
     # 保存第一条消息的ID用于后续取消置顶
-    schedall.week_ranks_message_id = sent_messages[0].id
+    config.schedall.week_ranks_message_id = sent_messages[0].id
     save_config()
     LOGGER.info("【ranks_task】定时任务 推送周榜完成")

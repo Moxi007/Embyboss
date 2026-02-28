@@ -7,7 +7,7 @@ import asyncio
 
 from pyrogram import filters
 
-from bot import bot, ranks, bot_photo, bot_name
+from bot import bot, config
 from bot.func_helper.filters import user_in_group_on_filter
 from pyrogram.types import (InlineQueryResultArticle, InputTextMessageContent,
                             InlineKeyboardMarkup, InlineKeyboardButton, InlineQuery, ChosenInlineResult)
@@ -23,14 +23,14 @@ async def find_sth_media(_, inline_query: InlineQuery):
         if not inline_query.query or len(inline_query.query) < 2:
             results = [InlineQueryResultArticle(
                 title=f"请输入输入请至少两位字符！",
-                description=f"本功能只提供于{ranks.logo}用户搜索收藏Emby资源库中的电影，电视剧，采用原生emby搜索，不一定准确，一切以Emby内容为准",
+                description=f"本功能只提供于{config.ranks.logo}用户搜索收藏Emby资源库中的电影，电视剧，采用原生emby搜索，不一定准确，一切以Emby内容为准",
                 input_message_content=InputTextMessageContent(
-                    f"本功能只提供于{ranks.logo}用户搜索/收藏Emby资源库中的电影，电视剧，采用原生emby搜索，不一定准确，一切以Emby内容为准"),
+                    f"本功能只提供于{config.ranks.logo}用户搜索/收藏Emby资源库中的电影，电视剧，采用原生emby搜索，不一定准确，一切以Emby内容为准"),
                 # ﹒
                 reply_markup=InlineKeyboardMarkup(
                     [[InlineKeyboardButton(text='🔍 已阅，开始查询', switch_inline_query_current_chat=' ')]]),
-                thumb_url=bot_photo, thumb_height=300, thumb_width=180)]
-            return await inline_query.answer(results=results, cache_time=1, switch_pm_text=f'{ranks.logo} 搜索指南',
+                thumb_url=config.bot_photo, thumb_height=300, thumb_width=180)]
+            return await inline_query.answer(results=results, cache_time=1, switch_pm_text=f'{config.ranks.logo} 搜索指南',
                                              is_personal=True,
                                              switch_pm_parameter='start')
 
@@ -38,12 +38,12 @@ async def find_sth_media(_, inline_query: InlineQuery):
 
         if not e or not e.embyid:
             results = [InlineQueryResultArticle(
-                title=f"{ranks.logo}",
+                title=f"{config.ranks.logo}",
                 description=f"未查询到您的Emby账户，停止服务，请先注册",
                 input_message_content=InputTextMessageContent(f"点击此处 👇"),
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(text='(●ˇ∀ˇ●)先注册', url=f't.me/{bot_name}?start')]]),
-                thumb_url=bot_photo, thumb_width=220, thumb_height=330)]
+                    [[InlineKeyboardButton(text='(●ˇ∀ˇ●)先注册', url=f't.me/{config.bot_name}?start')]]),
+                thumb_url=config.bot_photo, thumb_width=220, thumb_height=330)]
             return await inline_query.answer(results=results, cache_time=1, switch_pm_text='👉 我要注册！',
                                              is_personal=True,
                                              switch_pm_parameter='start')
@@ -54,12 +54,12 @@ async def find_sth_media(_, inline_query: InlineQuery):
             ret_movies = await emby.get_movies(title=Name, start=inline_count)
             if not ret_movies:
                 results = [InlineQueryResultArticle(
-                    title=f"{ranks.logo}",
+                    title=f"{config.ranks.logo}",
                     description=f"没有更多信息 {Name}",
                     input_message_content=InputTextMessageContent(f"没有更多信息 {Name}"),
                     reply_markup=InlineKeyboardMarkup(
                         [[InlineKeyboardButton(text='✔️ 重新搜索', switch_inline_query_current_chat=' ')]]),
-                    thumb_url=bot_photo, thumb_width=220, thumb_height=330)]
+                    thumb_url=config.bot_photo, thumb_width=220, thumb_height=330)]
                 await inline_query.answer(results=results, cache_time=1, switch_pm_text='查询结果',
                                           is_personal=True,
                                           switch_pm_parameter='start')

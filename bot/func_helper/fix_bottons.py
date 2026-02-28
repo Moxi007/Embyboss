@@ -3,12 +3,11 @@ from pykeyboard import InlineKeyboard, InlineButton
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from pyromod.helpers import ikb, array_chunk
 from datetime import datetime, timezone, timedelta
-from bot import chanel, main_group, bot_name, extra_emby_libs, tz_id, tz_ad, tz_api, tz_version, tz_username, tz_password, _open, sakura_b, \
-    schedall, auto_update, fuxx_pitao, moviepilot, red_envelope, config, game, LOGGER
+from bot import LOGGER, config
 from bot.func_helper import nezha_res
 from bot.func_helper.emby import emby
 from bot.func_helper.utils import members_info
-from bot import api as config_api
+from bot import config
 
 cache = Cache()
 
@@ -28,24 +27,24 @@ def judge_start_ikb(is_admin: bool, account: bool) -> InlineKeyboardMarkup:
         ])
 
         tg_buttons = [InlineKeyboardButton("⭕ 换绑TG", callback_data="changetg")]
-        if  _open.bindtg:
+        if  config.open.bindtg:
             tg_buttons.append(InlineKeyboardButton("🔍 绑定TG", callback_data="bindtg"))
         buttons.append(tg_buttons)
 
-        if _open.invite_lv == 'd':
+        if config.open.invite_lv == 'd':
             buttons.append([InlineKeyboardButton("🏪 兑换商店", callback_data="storeall")])
     else:
         buttons.append([
             InlineKeyboardButton("️👥 用户功能", callback_data="members"),
             InlineKeyboardButton("🌐 服务器", callback_data="server")
         ])
-        if schedall.check_ex:
+        if config.schedall.check_ex:
             buttons.append([InlineKeyboardButton("🎟️ 使用续期码", callback_data="exchange")])
 
-    if _open.checkin:
+    if config.open.checkin:
         try:
-            if config_api.webapp_url and config_api.webapp_url.strip() != "":
-                checkin_url = config_api.webapp_url.rstrip('/') + "/checkin/web"
+            if config.api.webapp_url and config.api.webapp_url.strip() != "":
+                checkin_url = config.api.webapp_url.rstrip('/') + "/checkin/web"
                 webapp_button = InlineKeyboardButton("🎯 签到", web_app=WebAppInfo(url=checkin_url))
                 buttons.append([webapp_button])
             else:
@@ -61,10 +60,10 @@ def judge_start_ikb(is_admin: bool, account: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 # un_group_answer
-group_f = ikb([[('点击我(●ˇ∀ˇ●)', f't.me/{bot_name}', 'url')]])
+group_f = ikb([[('点击我(●ˇ∀ˇ●)', f't.me/{config.bot_name}', 'url')]])
 # un in group
-judge_group_ikb = ikb([[('🌟 频道入口 ', f't.me/{chanel}', 'url'),
-                        ('💫 群组入口', f't.me/{main_group}', 'url')],
+judge_group_ikb = ikb([[('🌟 频道入口 ', f't.me/{config.chanel}', 'url'),
+                        ('💫 群组入口', f't.me/{config.main_group}', 'url')],
                        [('❌ 关闭消息', 'closeit')]])
 
 """members ↓"""
@@ -79,7 +78,7 @@ def members_ikb(is_admin: bool = False, account: bool = False) -> InlineKeyboard
                     [('🎬 显示/隐藏', 'embyblock'), ('⭕ 重置密码', 'reset')],
                     [('💖 我的收藏', 'my_favorites'),('💠 我的设备', 'my_devices')],
                     ]
-        if moviepilot.status:
+        if config.moviepilot.status:
             normal.append([('🍿 点播中心', 'download_center')])
         normal.append([('♻️ 主界面', 'back_start')])
         return ikb(normal)
@@ -141,7 +140,7 @@ async def cr_page_server():
     翻页服务器面板
     :return:
     """
-    sever = await nezha_res.sever_info(tz_ad, tz_api, tz_id, tz_version, tz_username, tz_password)
+    sever = await nezha_res.sever_info(config.tz_ad, config.tz_api, config.tz_id, config.tz_version, config.tz_username, config.tz_password)
     if not sever:
         return ikb([[('🔙 - 用户', 'members'), ('❌ - 上一级', 'back_start')]]), None
     d = []
@@ -347,10 +346,10 @@ async def favorites_page_ikb(total_page: int, current_page: int) -> InlineKeyboa
     keyboard.row(*followUp)
     return keyboard
 def cr_renew_ikb():
-    checkin = '✔️' if _open.checkin else '❌'
-    exchange = '✔️' if _open.exchange else '❌'
-    whitelist = '✔️' if _open.whitelist else '❌'
-    invite = '✔️' if _open.invite else '❌'
+    checkin = '✔️' if config.open.checkin else '❌'
+    exchange = '✔️' if config.open.exchange else '❌'
+    whitelist = '✔️' if config.open.whitelist else '❌'
+    invite = '✔️' if config.open.invite else '❌'
     # 添加邀请等级的显示
     lv_dic = {
         'a': '白名单',
@@ -358,12 +357,12 @@ def cr_renew_ikb():
         'c': '已禁用用户',
         'd': '所有人'
     }
-    invite_lv_text = lv_dic.get(_open.invite_lv, '未知')
-    checkin_lv_text = lv_dic.get(_open.checkin_lv, '未知')
+    invite_lv_text = lv_dic.get(config.open.invite_lv, '未知')
+    checkin_lv_text = lv_dic.get(config.open.checkin_lv, '未知')
     keyboard = InlineKeyboard(row_width=2)
     keyboard.add(InlineButton(f'{checkin} 每日签到', f'set_renew-checkin'),
                  InlineButton(f'签到等级: {checkin_lv_text}', f'set_checkin_lv'),
-                 InlineButton(f'{exchange} 自动{sakura_b}续期', f'set_renew-exchange'),
+                 InlineButton(f'{exchange} 自动{config.money}续期', f'set_renew-exchange'),
                  InlineButton(f'{whitelist} 兑换白名单', f'set_renew-whitelist'),
                  InlineButton(f'{invite} 兑换邀请码', f'set_renew-invite'),
                  InlineButton(f'邀请等级: {invite_lv_text}', f'set_invite_lv')
@@ -389,14 +388,14 @@ def checkin_lv_ikb():
 
 
 def config_preparation() -> InlineKeyboardMarkup:
-    mp_set = '✅' if moviepilot.status else '❎'
-    auto_up = '✅' if auto_update.status else '❎'
-    leave_ban = '✅' if _open.leave_ban else '❎'
-    uplays = '✅' if _open.uplays else '❎'
-    fuxx_pt = '✅' if fuxx_pitao else '❎'
-    red_envelope_status = '✅' if red_envelope.status else '❎'
-    allow_private = '✅' if red_envelope.allow_private else '❎'
-    checkin_lv_text = {'a': '白名单', 'b': '普通用户', 'd': '所有人'}.get(_open.checkin_lv, '所有人')
+    mp_set = '✅' if config.moviepilot.status else '❎'
+    auto_up = '✅' if config.auto_update.status else '❎'
+    leave_ban = '✅' if config.open.leave_ban else '❎'
+    uplays = '✅' if config.open.uplays else '❎'
+    fuxx_pt = '✅' if config.fuxx_pitao else '❎'
+    red_envelope_status = '✅' if config.red_envelope.status else '❎'
+    allow_private = '✅' if config.red_envelope.allow_private else '❎'
+    checkin_lv_text = {'a': '白名单', 'b': '普通用户', 'd': '所有人'}.get(config.open.checkin_lv, '所有人')
     keyboard = ikb(
         [[('📄 导出日志', 'log_out'), ('📌 设置探针', 'set_tz')],
          [('🎬 显/隐指定库', 'set_block'), (f'{fuxx_pt} 皮套人过滤功能', 'set_fuxx_pitao')],
@@ -441,7 +440,7 @@ async def cr_kk_ikb(uid, first):
         if name != '无账户信息':
             ban = "🌟 解除禁用" if lv == "**已禁用**" else '💢 禁用账户'
             keyboard = [[ban, f'user_ban-{uid}'], ['⚠️ 删除账户', f'closeemby-{uid}']]
-            if len(extra_emby_libs) > 0:
+            if len(config.extra_emby_libs) > 0:
                 success, rep = await emby.user(emby_id=embyid)
                 if success:
                     try:
@@ -451,7 +450,7 @@ async def cr_kk_ikb(uid, first):
                         enable_all_folders = policy.get("EnableAllFolders", False)
                         
                         # 获取额外媒体库对应的文件夹ID
-                        extra_folder_ids = await emby.get_folder_ids_by_names(extra_emby_libs)
+                        extra_folder_ids = await emby.get_folder_ids_by_names(config.extra_emby_libs)
                         
                         # 判断额外媒体库是否显示
                         if enable_all_folders is True:
@@ -486,7 +485,7 @@ async def cr_kk_ikb(uid, first):
         text += f"**· 🍉 TG&名称** | [{first}](tg://user?id={uid})\n" \
                 f"**· 🍒 识别のID** | `{uid}`\n" \
                 f"**· 🍓 当前状态** | {lv}\n" \
-                f"**· 🍥 持有{sakura_b}** | {iv}\n" \
+                f"**· 🍥 持有{config.money}** | {iv}\n" \
                 f"**· 💠 账号名称** | {name}\n" \
                 f"**· 🚨 到期时间** | **{ex}**\n"
         text += text1
@@ -501,7 +500,7 @@ def cv_user_playback_reporting(user_id):
 
 
 def gog_rester_ikb(link=None) -> InlineKeyboardMarkup:
-    link_ikb = ikb([[('🎁 点击领取', link, 'url')]]) if link else ikb([[('👆🏻 点击注册', f't.me/{bot_name}', 'url')]])
+    link_ikb = ikb([[('🎁 点击领取', link, 'url')]]) if link else ikb([[('👆🏻 点击注册', f't.me/{config.bot_name}', 'url')]])
     return link_ikb
 
 
@@ -509,13 +508,13 @@ def gog_rester_ikb(link=None) -> InlineKeyboardMarkup:
 
 
 def sched_buttons():
-    dayrank = '✅' if schedall.dayrank else '❎'
-    weekrank = '✅' if schedall.weekrank else '❎'
-    dayplayrank = '✅' if schedall.dayplayrank else '❎'
-    weekplayrank = '✅' if schedall.weekplayrank else '❎'
-    check_ex = '✅' if schedall.check_ex else '❎'
-    low_activity = '✅' if schedall.low_activity else '❎'
-    backup_db = '✅' if schedall.backup_db else '❎'
+    dayrank = '✅' if config.schedall.dayrank else '❎'
+    weekrank = '✅' if config.schedall.weekrank else '❎'
+    dayplayrank = '✅' if config.schedall.dayplayrank else '❎'
+    weekplayrank = '✅' if config.schedall.weekplayrank else '❎'
+    check_ex = '✅' if config.schedall.check_ex else '❎'
+    low_activity = '✅' if config.schedall.low_activity else '❎'
+    backup_db = '✅' if config.schedall.backup_db else '❎'
     keyboard = InlineKeyboard(row_width=2)
     keyboard.add(InlineButton(f'{dayrank} 播放日榜', f'sched-dayrank'),
                  InlineButton(f'{weekrank} 播放周榜', f'sched-weekrank'),
@@ -594,11 +593,11 @@ def mp_search_page_ikb(has_prev: bool, has_next: bool, page: int):
 # 添加 MoviePilot 设置按钮
 def mp_config_ikb():
     """MoviePilot 设置面板按钮"""
-    mp_status = '✅' if moviepilot.status else '❎'
+    mp_status = '✅' if config.moviepilot.status else '❎'
     lv_text = '无'
-    if moviepilot.lv == 'a':
+    if config.moviepilot.lv == 'a':
         lv_text = '白名单'
-    elif moviepilot.lv == 'b':
+    elif config.moviepilot.lv == 'b':
         lv_text = '普通用户'
     keyboard = ikb([
         [(f'{mp_status} 点播功能', 'set_mp_status')],
@@ -610,12 +609,12 @@ def mp_config_ikb():
 
 def game_config_ikb():
     """游戏设置面板按钮"""
-    rob_status = '✅' if game.rob_open else '❎'
-    bet_status = '✅' if game.bet_open else '❎'
-    game_21_status = '✅' if game.g21_open else '❎'
-    rob_no_emby = '✅' if game.rob_no_emby else '❎'
-    bet_no_emby = '✅' if game.bet_no_emby else '❎'
-    game_21_no_emby = '✅' if game.g21_no_emby else '❎'
+    rob_status = '✅' if config.game.rob_open else '❎'
+    bet_status = '✅' if config.game.bet_open else '❎'
+    game_21_status = '✅' if config.game.g21_open else '❎'
+    rob_no_emby = '✅' if config.game.rob_no_emby else '❎'
+    bet_no_emby = '✅' if config.game.bet_no_emby else '❎'
+    game_21_no_emby = '✅' if config.game.g21_no_emby else '❎'
     
     keyboard = ikb([
         [(f'{rob_status} 抢劫功能', 'set_game_rob_open'), (f'{bet_status} 赌局功能', 'set_game_bet_open')],

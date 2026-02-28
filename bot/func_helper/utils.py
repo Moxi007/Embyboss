@@ -1,6 +1,6 @@
 import pytz
 
-from bot import bot, _open, save_config, owner, admins, bot_name, ranks, schedall, group, config
+from bot import bot, config, save_config
 from bot.sql_helper.sql_code import sql_add_code
 from bot.sql_helper.sql_emby import sql_get_emby
 from cacheout import Cache
@@ -14,7 +14,7 @@ def judge_admins(uid):
     :param uid: tg_id
     :return: bool
     """
-    if uid != owner and uid not in admins and uid not in group:
+    if uid != config.owner and uid not in config.admins and uid not in config.group:
         return False
     else:
         return True
@@ -42,9 +42,9 @@ async def members_info(tg=None, name=None):
         lv = lv_dict.get(data.lv, '未知')
         if lv == '白名单':
             ex = '+ ∞'
-        elif data.name is not None and schedall.low_activity and not schedall.check_ex:
+        elif data.name is not None and config.schedall.low_activity and not config.schedall.check_ex:
             ex = f'__若{config.activity_check_days}天无观看将封禁__'
-        elif data.name is not None and not schedall.low_activity and not schedall.check_ex:
+        elif data.name is not None and not config.schedall.low_activity and not config.schedall.check_ex:
             ex = ' __无需保号，放心食用__'
         else:
             ex = data.ex or '无账户信息'
@@ -56,22 +56,22 @@ async def open_check():
     对config查询open
     :return: open_stats, all_user, tem, timing
     """
-    open_stats = _open.stat
-    all_user = _open.all_user
-    tem = _open.tem
-    timing = _open.timing
+    open_stats = config.open.stat
+    all_user = config.open.all_user
+    tem = config.open.tem
+    timing = config.open.timing
     return open_stats, all_user, tem, timing
 
 
 def tem_adduser():
-    _open.tem = _open.tem + 1
-    if _open.tem >= _open.all_user:
-        _open.stat = False
+    config.open.tem = config.open.tem + 1
+    if config.open.tem >= config.open.all_user:
+        config.open.stat = False
     save_config()
 
 
 def tem_deluser():
-    _open.tem = _open.tem - 1
+    config.open.tem = config.open.tem - 1
     save_config()
 
 
@@ -106,7 +106,7 @@ async def cr_link_one(tg: int, times, count, days: int, method: str):
     if method == 'code':
         while i <= count:
             p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Register_{p}'
+            uid = f'{config.ranks.logo}-{times}-Register_{p}'
             code_list.append(uid)
             link = f'`{uid}`\n'
             links += link
@@ -114,9 +114,9 @@ async def cr_link_one(tg: int, times, count, days: int, method: str):
     elif method == 'link':
         while i <= count:
             p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Register_{p}'
+            uid = f'{config.ranks.logo}-{times}-Register_{p}'
             code_list.append(uid)
-            link = f't.me/{bot_name}?start={uid}\n'
+            link = f't.me/{config.bot_name}?start={uid}\n'
             links += link
             i += 1
     if await sql_add_code(code_list, tg, days) is False:
@@ -141,7 +141,7 @@ async def rn_link_one(tg: int, times, count, days: int, method: str):
     if method == 'code':
         while i <= count:
             p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Renew_{p}'
+            uid = f'{config.ranks.logo}-{times}-Renew_{p}'
             code_list.append(uid)
             link = f'`{uid}`\n'
             links += link
@@ -149,9 +149,9 @@ async def rn_link_one(tg: int, times, count, days: int, method: str):
     elif method == 'link':
         while i <= count:
             p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Renew_{p}'
+            uid = f'{config.ranks.logo}-{times}-Renew_{p}'
             code_list.append(uid)
-            link = f't.me/{bot_name}?start={uid}\n'
+            link = f't.me/{config.bot_name}?start={uid}\n'
             links += link
             i += 1
     if await sql_add_code(code_list, tg, days) is False:
@@ -164,7 +164,7 @@ async def cr_link_two(tg: int, for_tg, days: int):
     invite_code = await pwd_create(11)
     uid = f'{for_tg}-{invite_code}'
     code_list.append(uid)
-    link = f't.me/{bot_name}?start={uid}'
+    link = f't.me/{config.bot_name}?start={uid}'
     if await sql_add_code(code_list, tg, days) is False:
         return None
     return link
@@ -208,7 +208,7 @@ def convert_to_beijing_time(original_date):
 async def get_users():
     # 创建一个空字典来存储用户的 first_name 和 id
     members_dict = {}
-    async for member in bot.get_chat_members(group[0]):
+    async for member in bot.get_chat_members(config.group[0]):
         try:
             members_dict[member.user.id] = member.user.first_name
         except Exception as e:

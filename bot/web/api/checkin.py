@@ -23,7 +23,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from bot import _open, bot_token, LOGGER, api as config_api, sakura_b
+from bot import LOGGER, config
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 
 # ==================== 路由与模板设置 ====================
@@ -32,13 +32,13 @@ templates_path = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(templates_path))
 
 # ==================== 配置参数 ====================
-TURNSTILE_SITE_KEY = config_api.cloudflare_turnstile.site_key
-TURNSTILE_SECRET_KEY = config_api.cloudflare_turnstile.secret_key
+TURNSTILE_SITE_KEY = config.api.cloudflare_turnstile.site_key
+TURNSTILE_SECRET_KEY = config.api.cloudflare_turnstile.secret_key
 
-RECAPTCHA_V3_SITE_KEY = config_api.google_recaptcha_v3.site_key
-RECAPTCHA_V3_SECRET_KEY = config_api.google_recaptcha_v3.secret_key
+RECAPTCHA_V3_SITE_KEY = config.api.google_recaptcha_v3.site_key
+RECAPTCHA_V3_SECRET_KEY = config.api.google_recaptcha_v3.secret_key
 
-SIGNING_SECRET = config_api.singing_secret
+SIGNING_SECRET = config.api.singing_secret
 
 MAX_REQUEST_AGE = 5
 RATE_LIMIT_WINDOW = 900
@@ -47,15 +47,15 @@ MAX_PAGE_LOAD_INTERVAL = 30
 MIN_PAGE_LOAD_INTERVAL = 1
 MIN_USER_INRTEACTION = 3
 
-REDIS_HOST = config_api.redis.host
-REDIS_PORT = config_api.redis.port
-REDIS_DB = config_api.redis.db
-REDIS_PASSWORD = config_api.redis.password
-DECODE_RESPONSES = config_api.redis.decode_responses
+REDIS_HOST = config.api.redis.host
+REDIS_PORT = config.api.redis.port
+REDIS_DB = config.api.redis.db
+REDIS_PASSWORD = config.api.redis.password
+DECODE_RESPONSES = config.api.redis.decode_responses
 
-TG_LOG_BOT_TOKEN = config_api.log_to_tg.bot_token
-TG_LOG_CHAT_ID = config_api.log_to_tg.chat_id
-TG_LOG_CHECKIN_THREAD_ID = config_api.log_to_tg.checkin_thread_id
+TG_LOG_BOT_TOKEN = config.api.log_to_tg.bot_token
+TG_LOG_CHAT_ID = config.api.log_to_tg.chat_id
+TG_LOG_CHECKIN_THREAD_ID = config.api.log_to_tg.checkin_thread_id
 _TG_LOG_CONFIG_MISSING_WARNING_SHOWN = False
 
 redis_client = None
@@ -164,7 +164,7 @@ def verify_telegram_webapp_data(init_data: str) -> Dict[str, Any]:
             raise HTTPException(status_code=401, detail="请求异常，请重试")
 
         data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(parsed_data.items()))
-        secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+        secret_key = hmac.new(b"WebAppData", config.bot_token.encode(), hashlib.sha256).digest()
         expected_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
         if not hmac.compare_digest(received_hash, expected_hash):
@@ -340,7 +340,7 @@ async def verify_checkin(
     recaptcha_v3_score = -1.0
 
     try:
-        if not _open.checkin:
+        if not config.open.checkin:
             reason = "签到功能未开启"
             LOGGER.warning(f"⚠️ 签到失败 ({reason}) - {log_base_info}")
             await send_log_to_tg('❌ 失败', request_data.user_id, reason, client_ip, user_agent)
@@ -427,7 +427,7 @@ async def verify_checkin(
             await send_log_to_tg('ℹ️ 已签', request_data.user_id, log_reason, client_ip, user_agent)
             raise HTTPException(status_code=409, detail="您今天已经签到过了，再签到剁掉你的小鸡鸡🐤")
 
-        reward = random.randint(_open.checkin_reward[0], _open.checkin_reward[1])
+        reward = random.randint(config.open.checkin_reward[0], config.open.checkin_reward[1])
         new_balance = e.iv + reward
 
         try:
@@ -443,11 +443,11 @@ async def verify_checkin(
             verification_methods.append(f"reCAPTCHAv3 - {recaptcha_v3_score:.1f}分")
         verification_info = " + ".join(verification_methods)
         
-        success_reason = f"奖励: {reward} {sakura_b}, 余额: {new_balance} {sakura_b}, 验证: {verification_info}"
+        success_reason = f"奖励: {reward} {config.money}, 余额: {new_balance} {config.money}, 验证: {verification_info}"
         LOGGER.info(f"✔️ 签到成功 ({success_reason}) - {log_base_info}")
         await send_log_to_tg('✅ 成功', request_data.user_id, success_reason, client_ip, user_agent)
 
-        checkin_text = f'🎉 **签到成功** | {reward} {sakura_b}\n💴 **当前持有** | {new_balance} {sakura_b}\n⏳ **签到日期** | {now.strftime("%Y-%m-%d")}'
+        checkin_text = f'🎉 **签到成功** | {reward} {config.money}\n💴 **当前持有** | {new_balance} {config.money}\n⏳ **签到日期** | {now.strftime("%Y-%m-%d")}'
 
         try:
             from bot import bot
@@ -460,7 +460,7 @@ async def verify_checkin(
         return JSONResponse({
             "success": True,
             "message": "签到成功",
-            "reward": f"获得 {reward} {sakura_b}，当前持有 {new_balance} {sakura_b}",
+            "reward": f"获得 {reward} {config.money}，当前持有 {new_balance} {config.money}",
             "should_close": True
         })
 

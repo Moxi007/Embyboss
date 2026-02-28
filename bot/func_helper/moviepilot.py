@@ -1,15 +1,15 @@
 import json
-from bot import LOGGER, moviepilot, save_config
+from bot import LOGGER, config, save_config
 import aiohttp
 import asyncio
 
 # 添加配置类
 class MoviePilot:
     def __init__(self):
-        self.url = moviepilot.url
-        self.username = moviepilot.username 
-        self.password = moviepilot.password
-        self.access_token = moviepilot.access_token or ''
+        self.url = config.moviepilot.url
+        self.username = config.moviepilot.username 
+        self.password = config.moviepilot.password
+        self.access_token = config.moviepilot.access_token or ''
 
 mp = MoviePilot()
 
@@ -49,7 +49,7 @@ async def login():
             result = await response.json()
     if 'access_token' in result:
         mp.access_token = result['token_type'] + ' ' + result['access_token']
-        moviepilot.access_token = mp.access_token # 保存到config
+        config.moviepilot.access_token = mp.access_token # 保存到config
         save_config()
         LOGGER.info("MP 登录成功, token已保存")
         return True

@@ -21,7 +21,7 @@ from pyrogram.types import (
 from pyrogram.errors import FloodWait, MessageNotModified
 
 # 导入 bot 原有变量和配置
-from bot import bot, prefixes, sakura_b, game, LOGGER
+from bot import LOGGER, bot, config, prefixes
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 from bot.func_helper.win_rate_stats import WinRateStatsManager
 
@@ -158,14 +158,14 @@ class ScoreboardRenderer:
         ]
         for i, player in enumerate(players, 1):
             user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
-            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b}")
+            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {config.money}")
         
         if len(players) == 0:
             lines.append("- 暂无玩家上车 -")
             
         lines.append("")
         lines.append("💡 发送 `/g21 [金额]` 参与对局")
-        lines.append(f"💡 退出游戏将扣除惩罚 (⚠️ 玩家违约扣 20%，庄家违约扣 100 {sakura_b})")
+        lines.append(f"💡 退出游戏将扣除惩罚 (⚠️ 玩家违约扣 20%，庄家违约扣 100 {config.money})")
         return "\n".join(lines)
 
     
@@ -197,7 +197,7 @@ class ScoreboardRenderer:
         for i, player in enumerate(players, 1):
             user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
             player_points = player.get('points', 0)
-            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {sakura_b} | 点数：**{player_points}**")
+            lines.append(f"{i}. {user_link} - 下注 **{player['bet_amount']}** {config.money} | 点数：**{player_points}**")
         
         return "\n".join(lines)
     
@@ -244,7 +244,7 @@ class ScoreboardRenderer:
             }.get(state, "未知")
             
             user_link = ScoreboardRenderer.format_user_link(player['user_id'], player['username'])
-            lines.append(f"{i}. {state_icon} {user_link} (下注 {player['bet_amount']} {sakura_b})")
+            lines.append(f"{i}. {state_icon} {user_link} (下注 {player['bet_amount']} {config.money})")
             lines.append(f"   手牌：{player_hand} | 点数：**{points}** | {state_text}")
         
         return "\n".join(lines)
@@ -261,7 +261,7 @@ class ScoreboardRenderer:
             "🎰 **21点游戏 - 结算**", "",
             f"🎩 **庄家 ({dealer_link}) 最终手牌：**",
             f"{dealer_hand} (点数：{dealer_points})", 
-            f"💰 **庄家本局净收益：** **{profit_str}** {sakura_b}", "",
+            f"💰 **庄家本局净收益：** **{profit_str}** {config.money}", "",
             "📊 **玩家结算：**"
         ]
         
@@ -878,7 +878,7 @@ class ResolutionManager:
 
 @bot.on_message(filters.command('startg21', prefixes=prefixes) & filters.group)
 async def handle_startg21_command(client: Client, message: Message):
-    if not game.g21_open: return
+    if not config.game.g21_open: return
     try: await message.delete()
     except: pass
     
@@ -892,7 +892,7 @@ async def handle_startg21_command(client: Client, message: Message):
             x = await message.reply_text("❌ 您还未在系统中初始化，请先私信我激活")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
             
-        if not game.g21_no_emby and not user.embyid:
+        if not config.game.g21_no_emby and not user.embyid:
             x = await message.reply_text("❌ 您还未注册Emby账户")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
             
@@ -925,7 +925,7 @@ async def handle_startg21_command(client: Client, message: Message):
 
 @bot.on_message(filters.command('g21', prefixes=prefixes) & filters.group)
 async def handle_g21_command(client: Client, message: Message):
-    if not game.g21_open: return
+    if not config.game.g21_open: return
     try: await message.delete()
     except: pass
     
@@ -956,7 +956,7 @@ async def handle_g21_command(client: Client, message: Message):
         bet_amount = parse_result['bet_amount']
         
         if user.iv < bet_amount:
-            x = await message.reply_text(f"❌ 余额不足！当前余额：{user.iv} {sakura_b}")
+            x = await message.reply_text(f"❌ 余额不足！当前余额：{user.iv} {config.money}")
             return asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
         
         try:
@@ -975,9 +975,9 @@ async def handle_g21_command(client: Client, message: Message):
         if result.get('is_additional'):
             x = await message.reply_text(
                 f"✅ 追加成功！\n"
-                f"原下注：{result['old_bet']} {sakura_b}\n"
-                f"追加金额：{result['additional_amount']} {sakura_b}\n"
-                f"当前总下注：{result['new_total']} {sakura_b}"
+                f"原下注：{result['old_bet']} {config.money}\n"
+                f"追加金额：{result['additional_amount']} {config.money}\n"
+                f"当前总下注：{result['new_total']} {config.money}"
             )
             asyncio.create_task(delete_message_after_delay(client, group_id, x.id, 10))
         
@@ -1016,8 +1016,8 @@ async def handle_lobby_quit_callback(client: Client, call: CallbackQuery):
             await session.cleanup(client, refund_all=True)
             
             if penalty > 0:
-                await call.answer(f"✅ 您已强制解散游戏，扣除违约金 {penalty} {sakura_b}，玩家筹码已退还", show_alert=True)
-                x = await client.send_message(group_id, f"🛑 庄家 {session.dealer_name} 强制解散了游戏，已被扣除 {penalty} {sakura_b} 违约金。所有玩家筹码已退回。")
+                await call.answer(f"✅ 您已强制解散游戏，扣除违约金 {penalty} {config.money}，玩家筹码已退还", show_alert=True)
+                x = await client.send_message(group_id, f"🛑 庄家 {session.dealer_name} 强制解散了游戏，已被扣除 {penalty} {config.money} 违约金。所有玩家筹码已退回。")
             else:
                 await call.answer("✅ 您已取消本局游戏", show_alert=False)
                 x = await client.send_message(group_id, f"🛑 庄家 {session.dealer_name} 取消了游戏。")
@@ -1031,7 +1031,7 @@ async def handle_lobby_quit_callback(client: Client, call: CallbackQuery):
         result = await session.remove_player(user_id, penalty_rate=0.2)
         if result['success']:
             await call.answer(
-                f"✅ 退出成功！扣除违约金 {result['penalty_amount']}，退还 {result['refund_amount']} {sakura_b}", 
+                f"✅ 退出成功！扣除违约金 {result['penalty_amount']}，退还 {result['refund_amount']} {config.money}", 
                 show_alert=True
             )
             await LobbyManager(session).update_lobby_panel(client)

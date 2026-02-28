@@ -10,7 +10,7 @@ import json
 from fastapi import APIRouter, Request
 from bot.sql_helper.sql_emby import Emby, sql_get_emby, sql_update_emby
 from bot.func_helper.emby import emby
-from bot import LOGGER, group, bot
+from bot import LOGGER, bot, config
 
 route = APIRouter()
 
@@ -104,7 +104,7 @@ async def ban_user(request: Request):
             await sql_update_emby(Emby.tg == user.tg, lv='c')
             send_notification = f"#BAN通告\n用户 {user.name} (TG: #{user.tg}, EmbyID: {user.embyid}) 已被封禁。"
             LOGGER.info(send_notification)
-            await bot.send_message(chat_id=group[0], text=send_notification)
+            await bot.send_message(chat_id=config.group[0], text=send_notification)
             return {
                 "code": 200,
                 "data": {"tg": user.tg,"embyid": user.embyid, "name": user.name, "lv": user.lv},

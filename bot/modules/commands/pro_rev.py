@@ -8,7 +8,7 @@ import asyncio
 from pyrogram import filters
 from pyrogram.errors import BadRequest
 
-from bot import bot, prefixes, owner, admins, save_config, LOGGER
+from bot import LOGGER, bot, config, prefixes, save_config
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.msg_utils import sendMessage, deleteMessage
 from bot.schemas import Yulv
@@ -18,7 +18,7 @@ from bot.sql_helper.sql_emby2 import sql_get_emby2, sql_update_emby2, Emby2
 
 
 # 新增管理名单
-@bot.on_message(filters.command('proadmin', prefixes=prefixes) & filters.user(owner))
+@bot.on_message(filters.command('proadmin', prefixes=prefixes) & filters.user(config.owner))
 async def pro_admin(_, msg):
     if msg.reply_to_message is None:
         try:
@@ -32,14 +32,14 @@ async def pro_admin(_, msg):
     else:
         uid = msg.reply_to_message.from_user.id
         first = await bot.get_chat(uid)
-    if uid not in admins:
-        admins.append(uid)
+    if uid not in config.admins:
+        config.admins.append(uid)
         save_config()
 
     await asyncio.gather(deleteMessage(msg), BotCommands.pro_commands(_, uid),
                          sendMessage(msg,
                                      f'**{random.choice(Yulv.load_yulv().wh_msg)}**\n\n'
-                                     f'👮🏻 新更新管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{admins}',
+                                     f'👮🏻 新更新管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{config.admins}',
                                      timer=60))
 
     LOGGER.info(f"【admin】：{msg.from_user.id} 新更新 管理 {first.first_name}-{uid}")
@@ -116,7 +116,7 @@ async def pro_user(_, msg):
 
 
 # 减少管理
-@bot.on_message(filters.command('revadmin', prefixes=prefixes) & filters.user(owner))
+@bot.on_message(filters.command('revadmin', prefixes=prefixes) & filters.user(config.owner))
 async def del_admin(_, msg):
     if msg.reply_to_message is None:
         try:
@@ -131,12 +131,12 @@ async def del_admin(_, msg):
     else:
         uid = msg.reply_to_message.from_user.id
         first = await bot.get_chat(uid)
-    if uid in admins:
-        admins.remove(uid)
+    if uid in config.admins:
+        config.admins.remove(uid)
         save_config()
     await asyncio.gather(deleteMessage(msg), BotCommands.rev_commands(_, uid),
                          sendMessage(msg,
-                                     f'👮🏻 已减少管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{admins}'))
+                                     f'👮🏻 已减少管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{config.admins}'))
     LOGGER.info(f"【admin】：{msg.from_user.id} 新减少 管理 {first.first_name}-{uid}")
 
 

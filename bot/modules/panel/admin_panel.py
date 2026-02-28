@@ -6,7 +6,7 @@ import asyncio
 
 from pyrogram import filters
 
-from bot import bot, _open, save_config, bot_photo, LOGGER, bot_name, admins, owner, config
+from bot import LOGGER, bot, config, save_config
 from bot.func_helper.filters import admins_on_filter
 from bot.schemas import ExDate
 from bot.sql_helper.sql_code import sql_count_code, sql_count_p_code, sql_delete_all_unused, sql_delete_unused_by_days
@@ -47,7 +47,7 @@ async def open_menu(_, call):
            f'- **注册总人数限制 {all_user}**'
     await editMessage(call, text, buttons=open_menu_ikb(openstats, timingstats))
     if tem != emby:
-        _open.tem = emby
+        config.open.tem = emby
         save_config()
 
 
@@ -59,26 +59,26 @@ async def open_stats(_, call):
 
     tg, emby, white = await sql_count_emby()
     if stat:
-        _open.stat = False
+        config.open.stat = False
         save_config()
         await callAnswer(call, "🟢【自由注册】\n\n已结束", True)
         sur = all_user - tem
         text = f'🫧 管理员 {call.from_user.first_name} 已关闭 **自由注册**\n\n' \
                f'🎫 总注册限制 | {all_user}\n🎟️ 已注册人数 | {tem}\n' \
                f'🎭 剩余可注册 | **{sur}**\n🤖 bot使用人数 | {tg}'
-        await asyncio.gather(sendPhoto(call, photo=bot_photo, caption=text, send=True),
+        await asyncio.gather(sendPhoto(call, photo=config.bot_photo, caption=text, send=True),
                              editMessage(call, text, buttons=back_free_ikb))
         # await open_menu(_, call)
         LOGGER.info(f"【admin】：管理员 {call.from_user.first_name} 关闭了自由注册")
     elif not stat:
-        _open.stat = True
+        config.open.stat = True
         save_config()
         await callAnswer(call, "🟡【自由注册】\n\n已开启", True)
         sur = all_user - tem  # for i in group可以多个群组用，但是现在不做
         text = f'🫧 管理员 {call.from_user.first_name} 已开启 **自由注册**\n\n' \
                f'🎫 总注册限制 | {all_user}\n🎟️ 已注册人数 | {tem}\n' \
                f'🎭 剩余可注册 | **{sur}**\n🤖 bot使用人数 | {tg}'
-        await asyncio.gather(sendPhoto(call, photo=bot_photo, caption=text, buttons=gog_rester_ikb(), send=True),
+        await asyncio.gather(sendPhoto(call, photo=config.bot_photo, caption=text, buttons=gog_rester_ikb(), send=True),
                              editMessage(call, text=text, buttons=back_free_ikb))
         # await open_menu(_, call)
         LOGGER.info(f"【admin】：管理员 {call.from_user.first_name} 开启了自由注册，总人数限制 {all_user}")
@@ -90,7 +90,7 @@ change_for_timing_task = None
 @bot.on_callback_query(filters.regex('open_timing') & admins_on_filter)
 async def open_timing(_, call):
     global change_for_timing_task
-    if _open.timing == 0:
+    if config.open.timing == 0:
         await callAnswer(call, '⭕ 定时设置')
         await editMessage(call,
                           "🦄【定时注册】 \n\n- 请在 120s 内发送 [定时时长] [总人数]\n"
@@ -108,29 +108,29 @@ async def open_timing(_, call):
 
         try:
             new_timing, new_all_user = txt.text.split()
-            _open.timing = int(new_timing)
-            _open.all_user = int(new_all_user)
-            _open.stat = True
+            config.open.timing = int(new_timing)
+            config.open.all_user = int(new_all_user)
+            config.open.stat = True
             save_config()
         except ValueError:
             await editMessage(call, "🚫 请检查数字填写是否正确。\n`[时长min] [总人数]`", buttons=back_open_menu_ikb)
         else:
             tg, emby, white = await sql_count_emby()
-            sur = _open.all_user - emby
-            await asyncio.gather(sendPhoto(call, photo=bot_photo,
+            sur = config.open.all_user - emby
+            await asyncio.gather(sendPhoto(call, photo=config.bot_photo,
                                            caption=f'🫧 管理员 {call.from_user.first_name} 已开启 **定时注册**\n\n'
-                                                   f'⏳ 可持续时间 | **{_open.timing}** min\n'
-                                                   f'🎫 总注册限制 | {_open.all_user}\n🎟️ 已注册人数 | {emby}\n'
+                                                   f'⏳ 可持续时间 | **{config.open.timing}** min\n'
+                                                   f'🎫 总注册限制 | {config.open.all_user}\n🎟️ 已注册人数 | {emby}\n'
                                                    f'🎭 剩余可注册 | **{sur}**\n🤖 bot使用人数 | {tg}',
                                            buttons=gog_rester_ikb(), send=True),
                                  editMessage(call,
-                                             f"®️ 好，已设置**定时注册 {_open.timing} min 总限额 {_open.all_user}**",
+                                             f"®️ 好，已设置**定时注册 {config.open.timing} min 总限额 {config.open.all_user}**",
                                              buttons=back_free_ikb))
             LOGGER.info(
-                f"【admin】-定时注册：管理员 {call.from_user.first_name} 开启了定时注册 {_open.timing} min，人数限制 {sur}")
+                f"【admin】-定时注册：管理员 {call.from_user.first_name} 开启了定时注册 {config.open.timing} min，人数限制 {sur}")
             # 创建一个异步任务并保存为变量，并给它一个名字
             change_for_timing_task = asyncio.create_task(
-                change_for_timing(_open.timing, call.from_user.id, call), name='change_for_timing')
+                change_for_timing(config.open.timing, call.from_user.id, call), name='change_for_timing')
 
     else:
         try:
@@ -148,22 +148,22 @@ async def open_timing(_, call):
 
 
 async def change_for_timing(timing, tgid, call):
-    a = _open.tem
+    a = config.open.tem
     timing = timing * 60
     try:
         await asyncio.sleep(timing)
     except asyncio.CancelledError:
         pass
     finally:
-        _open.timing = 0
-        _open.stat = False
+        config.open.timing = 0
+        config.open.stat = False
         save_config()
-        b = _open.tem - a
-        s = _open.all_user - _open.tem
-        text = f'⏳** 注册结束**：\n\n🍉 目前席位：{_open.tem}\n🥝 新增席位：{b}\n🍋 剩余席位：{s}'
-        send = await sendPhoto(call, photo=bot_photo, caption=text, timer=300, send=True)
+        b = config.open.tem - a
+        s = config.open.all_user - config.open.tem
+        text = f'⏳** 注册结束**：\n\n🍉 目前席位：{config.open.tem}\n🥝 新增席位：{b}\n🍋 剩余席位：{s}'
+        send = await sendPhoto(call, photo=config.bot_photo, caption=text, timer=300, send=True)
         send1 = await send.forward(tgid)
-        LOGGER.info(f'【admin】-定时注册：运行结束，本次注册 目前席位：{_open.tem}  新增席位:{b}  剩余席位：{s}')
+        LOGGER.info(f'【admin】-定时注册：运行结束，本次注册 目前席位：{config.open.tem}  新增席位:{b}  剩余席位：{s}')
         await deleteMessage(send1, 30)
 
 
@@ -188,7 +188,7 @@ async def open_all_user_l(_, call):
     except ValueError:
         await editMessage(call, f"❌ 八嘎，请输入一个数字给我。", buttons=back_free_ikb)
     else:
-        _open.all_user = a
+        config.open.all_user = a
         save_config()
         await editMessage(call, f"✔️ 成功，您已设置 **注册总人数 {a}**", buttons=back_free_ikb)
         LOGGER.info(f"【admin】：管理员 {call.from_user.first_name} 调整了总人数限制：{a}")
@@ -213,7 +213,7 @@ async def open_us(_, call):
     except ValueError:
         await editMessage(call, f"❌ 八嘎，请输入一个数字给我。", buttons=back_free_ikb)
     else:
-        _open.open_us = a
+        config.open.open_us = a
         save_config()
         await editMessage(call, f"✔️ 成功，您已设置 **开放注册时账号的有效天数 {a}**", buttons=back_free_ikb)
         LOGGER.info(f"【admin】：管理员 {call.from_user.first_name} 调整了开放注册时账号的有效天数：{a}")
@@ -252,23 +252,23 @@ async def cr_link(_, call):
             links = await cr_link_one(call.from_user.id, times, count, days, method)
             if links is None:
                 return await editMessage(call, '⚠️ 数据库插入失败，请检查数据库。', buttons=re_cr_link_ikb)
-            links = f"🎯 {bot_name}已为您生成了 **{days}天** 注册码 {count} 个\n\n" + links
+            links = f"🎯 {config.bot_name}已为您生成了 **{days}天** 注册码 {count} 个\n\n" + links
             chunks = [links[i:i + 4096] for i in range(0, len(links), 4096)]
             for chunk in chunks:
                 await sendMessage(content, chunk, buttons=close_it_ikb)
-            await editMessage(call, f'📂 {bot_name}已为 您 生成了 {count} 个 {days} 天注册码', buttons=re_cr_link_ikb)
-            LOGGER.info(f"【admin】：{bot_name}已为 {content.from_user.id} 生成了 {count} 个 {days} 天注册码")
+            await editMessage(call, f'📂 {config.bot_name}已为 您 生成了 {count} 个 {days} 天注册码', buttons=re_cr_link_ikb)
+            LOGGER.info(f"【admin】：{config.bot_name}已为 {content.from_user.id} 生成了 {count} 个 {days} 天注册码")
 
         else:
             links = await rn_link_one(call.from_user.id, times, count, days, method)
             if links is None:
                 return await editMessage(call, '⚠️ 数据库插入失败，请检查数据库。', buttons=re_cr_link_ikb)
-            links = f"🎯 {bot_name}已为您生成了 **{days}天** 续期码 {count} 个\n\n" + links
+            links = f"🎯 {config.bot_name}已为您生成了 **{days}天** 续期码 {count} 个\n\n" + links
             chunks = [links[i:i + 4096] for i in range(0, len(links), 4096)]
             for chunk in chunks:
                 await sendMessage(content, chunk, buttons=close_it_ikb)
-            await editMessage(call, f'📂 {bot_name}已为 您 生成了 {count} 个 {days} 天续期码', buttons=re_cr_link_ikb)
-            LOGGER.info(f"【admin】：{bot_name}已为 {content.from_user.id} 生成了 {count} 个 {days} 天续期码")
+            await editMessage(call, f'📂 {config.bot_name}已为 您 生成了 {count} 个 {days} 天续期码', buttons=re_cr_link_ikb)
+            LOGGER.info(f"【admin】：{config.bot_name}已为 {content.from_user.id} 生成了 {count} 个 {days} 天续期码")
 
 
 # 检索
@@ -278,15 +278,15 @@ async def ch_link(_, call):
     a, b, c, d, f, e = await sql_count_code()
     text = f'**🎫 常用code数据：\n• 已使用 - {a}  | • 未使用 - {e}\n• 月码 - {b}   | • 季码 - {c} \n• 半年码 - {d}  | • 年码 - {f}**'
     ls = []
-    admins.append(owner)
-    for i in admins:
+    config.admins.append(config.owner)
+    for i in config.admins:
         name = await bot.get_chat(i)
         a, b, c, d, f ,e= await sql_count_code(i)
         text += f'\n👮🏻`{name.first_name}`: 月/{b}，季/{c}，半年/{d}，年/{f}，已用/{a}，未用/{e}'
         f = [f"🔎 {name.first_name}", f"ch_admin_link-{i}"]
         ls.append(f)
     ls.append(["🚮 删除未使用码", f"delete_codes"])
-    admins.remove(owner)
+    config.admins.remove(config.owner)
     keyboard = ch_link_ikb(ls)
     text += '\n详情查询 👇'
 
@@ -296,7 +296,7 @@ async def ch_link(_, call):
 @bot.on_callback_query(filters.regex('delete_codes') & admins_on_filter)
 async def delete_unused_codes(_, call):
     await callAnswer(call, '⚠️ 请确认要删除码的类别')
-    if call.from_user.id != owner:
+    if call.from_user.id != config.owner:
         return await callAnswer(call, '🚫 不可以哦！ 你又不是owner', True)
     
     await editMessage(call, 
@@ -333,7 +333,7 @@ async def delete_unused_codes(_, call):
 @bot.on_callback_query(filters.regex('ch_admin_link'))
 async def ch_admin_link(client, call):
     i = int(call.data.split('-')[1])
-    if call.from_user.id != owner and call.from_user.id != i:
+    if call.from_user.id != config.owner and call.from_user.id != i:
         return await callAnswer(call, '🚫 你怎么偷窥别人呀! 你又不是owner', True)
     await callAnswer(call, f'💫 管理员 {i} 的注册码')
     a, b, c, d, f, e= await sql_count_code(i)
@@ -375,7 +375,7 @@ async def set_renew(_, call):
     await callAnswer(call, '🚀 进入续期设置')
     try:
         method = call.data.split('-')[1]
-        setattr(_open, method, not getattr(_open, method))
+        setattr(config.open, method, not getattr(config.open, method))
         save_config()
     except IndexError:
         pass
@@ -416,14 +416,14 @@ async def invite_lv_set(_, call):
             # 当选择具体等级时
             level = method.split('-')[1]
             if level in ['a', 'b', 'c', 'd']:
-                _open.invite_lv = level
+                config.open.invite_lv = level
                 save_config()
                 await callAnswer(call, f'✅ 已设置邀请等级为 {level}', show_alert=True)
         await callAnswer(call, '🚀 进入邀请等级设置')
         # 当点击设置邀请等级按钮时
         await editMessage(call, 
             "请选择邀请等级:\n\n"
-            f"当前等级: {_open.invite_lv}\n\n"
+            f"当前等级: {config.open.invite_lv}\n\n"
             "🅰️ - 白名单可使用\n"
             "🅱️ - 普通用户及以上可使用\n" 
             "©️ - 已禁用用户及以上可使用\n"
@@ -440,14 +440,14 @@ async def checkin_lv_set(_, call):
             # 当选择具体等级时
             level = method.split('-')[1]
             if level in ['a', 'b', 'c', 'd']:
-                _open.checkin_lv = level
+                config.open.checkin_lv = level
                 save_config()
                 await callAnswer(call, f'✅ 已设置签到等级为 {level}', show_alert=True)
         await callAnswer(call, '🚀 进入签到等级设置')
         # 当点击设置签到等级按钮时
         await editMessage(call, 
             "请选择签到等级:\n\n"
-            f"当前等级: {_open.checkin_lv}\n\n"
+            f"当前等级: {config.open.checkin_lv}\n\n"
             "🅰️ - 白名单可签到\n"
             "🅱️ - 普通用户及以上可签到\n" 
             "©️ - 已禁用用户及以上可签到\n"

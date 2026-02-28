@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Dict, Any, List, Union
 from contextlib import asynccontextmanager
 
-from bot import emby_url, emby_api, emby_block, extra_emby_libs, LOGGER
+from bot import LOGGER, config
 from bot.sql_helper.sql_emby import sql_update_emby, Emby
 from bot.func_helper.utils import pwd_create, convert_runtime, cache, Singleton
 
@@ -24,7 +24,7 @@ def create_policy(admin=False, disable=False, limit: int = 2, block: list = None
     :return: policy 用户策略
     """
     if block is None:
-        block = ['播放列表'] + extra_emby_libs
+        block = ['播放列表'] + config.extra_emby_libs
     
     policy = {
         "IsAdministrator": admin,
@@ -267,7 +267,7 @@ class Embyservice(metaclass=Singleton):
                 # 4. 隐藏 emby_block 和 extra_emby_libs 媒体库
                 try:
                     # 使用封装的隐藏方法
-                    block_libs = emby_block + extra_emby_libs
+                    block_libs = config.emby_block + config.extra_emby_libs
                     result = await self.hide_folders_by_names(user_id, block_libs)
                     if not result:
                         LOGGER.warning(f"设置媒体库权限失败: {user_id}，但用户已创建成功")
@@ -356,7 +356,7 @@ class Embyservice(metaclass=Singleton):
         """
         try:
             if block is None:
-                block = emby_block
+                block = config.emby_block
                 
             if stats == 0:
                 policy = create_policy(False, False, block=block)
@@ -1025,7 +1025,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": True
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={config.emby_api}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1083,7 +1083,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": False
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={config.emby_api}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1165,7 +1165,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": False
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={config.emby_api}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1247,7 +1247,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": False
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={config.emby_api}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1312,7 +1312,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": True
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={config.emby_api}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1348,7 +1348,7 @@ class Embyservice(metaclass=Singleton):
             # 创建临时会话进行请求
             timeout = aiohttp.ClientTimeout(total=10)
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                url = f"{emby_url}/emby/Items/Counts?api_key={emby_api}"
+                url = f"{config.emby_url}/emby/Items/Counts?api_key={config.emby_api}"
                 async with session.get(url) as response:
                     if response.status in [200, 204]:
                         result = await response.json()
@@ -1469,4 +1469,4 @@ class Embyservice(metaclass=Singleton):
 
 
 # 创建全局实例
-emby = Embyservice(emby_url, emby_api)
+emby = Embyservice(config.emby_url, config.emby_api)

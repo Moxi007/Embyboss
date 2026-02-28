@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from pyrogram.errors import BadRequest
 from pyrogram.filters import create
-from bot import admins, owner, group, LOGGER
+from bot import LOGGER, config
 from pyrogram.enums import ChatMemberStatus
 
 
@@ -26,7 +26,7 @@ async def admins_on_filter(filt, client, update) -> bool:
     """
     user = update.from_user or update.sender_chat
     uid = user.id
-    return bool(uid == owner or uid in admins or uid in group)
+    return bool(uid == config.owner or uid in config.admins or uid in config.group)
 
 
 async def admins_filter(update):
@@ -35,7 +35,7 @@ async def admins_filter(update):
     """
     user = update.from_user or update.sender_chat
     uid = user.id
-    return bool(uid == owner or uid in admins)
+    return bool(uid == config.owner or uid in config.admins)
 
 
 async def user_in_group_filter(client, update):
@@ -47,7 +47,7 @@ async def user_in_group_filter(client, update):
     """
     uid = update.from_user or update.sender_chat
     uid = uid.id
-    for i in group:
+    for i in config.group:
         try:
             u = await client.get_chat_member(chat_id=int(i), user_id=uid)
             if u.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.MEMBER, ChatMemberStatus.OWNER]:
@@ -74,9 +74,9 @@ async def user_in_group_on_filter(filt, client, update):
     """
     uid = update.from_user or update.sender_chat
     uid = uid.id
-    if uid in group:
+    if uid in config.group:
         return True
-    for i in group:
+    for i in config.group:
         try:
             u = await client.get_chat_member(chat_id=int(i), user_id=uid)
             if u.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.MEMBER,

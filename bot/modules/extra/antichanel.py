@@ -8,7 +8,7 @@ import asyncio
 
 from pyrogram import filters
 
-from bot import bot, prefixes, w_anti_channel_ids, LOGGER, save_config, config
+from bot import LOGGER, bot, config, prefixes, save_config
 from bot.func_helper.filters import admins_on_filter
 
 
@@ -39,8 +39,8 @@ async def allow_pitao(_, msg):
     chatid, gm = await get_user_input(msg)
     if not chatid:
         return await msg.reply('使用 /white_channel 回复 或 /white_channel + [id/用户名] 加入皮套人白名单')
-    if chatid not in w_anti_channel_ids:
-        w_anti_channel_ids.append(chatid)
+    if chatid not in config.w_anti_channel_ids:
+        config.w_anti_channel_ids.append(chatid)
         save_config()
     await asyncio.gather(msg.reply(f'🎁 {gm} 已为 {chatid} 添加皮套人白名单'), msg.chat.unban_member(chatid))
     LOGGER.info(f'【AntiChannel】- {gm} 豁免皮套 ——> {chatid}')
@@ -51,8 +51,8 @@ async def remove_pitao(_, msg):
     a, gm = await get_user_input(msg)
     if not a:
         return await msg.reply('使用 /rev_white_channel 回复 或 /rev_white_channel + [id/用户名] 移除皮套人白名单')
-    if a in w_anti_channel_ids:
-        w_anti_channel_ids.remove(a)
+    if a in config.w_anti_channel_ids:
+        config.w_anti_channel_ids.remove(a)
         save_config()
     await asyncio.gather(msg.reply(f'🕶️ {gm} 已为 {a} 移除皮套人白名单并封禁'), msg.chat.ban_member(a))
     LOGGER.info(f'【AntiChannel】- {gm} 封禁皮套 ——> {a}')
@@ -62,7 +62,7 @@ custom_message_filter = filters.create(
     lambda _, __, message: False if message.forward_from_chat or message.from_user or not config.fuxx_pitao else True)
 custom_chat_filter = filters.create(
     lambda _, __,
-           message: True if message.sender_chat.id != message.chat.id and message.sender_chat.id not in w_anti_channel_ids else False)
+           message: True if message.sender_chat.id != message.chat.id and message.sender_chat.id not in config.w_anti_channel_ids else False)
 
 
 @bot.on_message(custom_message_filter & custom_chat_filter & filters.group)

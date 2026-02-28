@@ -12,7 +12,7 @@ from typing import Tuple
 from datetime import datetime
 from pyrogram.enums import ParseMode
 from pyrogram.errors import PeerIdInvalid
-from bot import LOGGER, bot, api as config_api
+from bot import LOGGER, bot, config
 from bot.sql_helper.sql_emby import sql_get_emby
 from bot.sql_helper.sql_emby2 import sql_get_emby2
 from fastapi import APIRouter, Request, Response, HTTPException
@@ -21,11 +21,11 @@ from bot.func_helper.shared_cache import host_cache, play_session_cache, ip_cach
 route = APIRouter()
 
 # --- 配置加载 ---
-TG_LOG_BOT_TOKEN = config_api.log_to_tg.bot_token
-TG_LOG_CHAT_ID = config_api.log_to_tg.chat_id
-TG_LOGIN_THREAD_ID = config_api.log_to_tg.login_thread_id
-TG_PLAY_THREAD_ID = config_api.log_to_tg.play_thread_id
-IGNORED_USERS_SET = config_api.log_to_tg.ignore_users
+TG_LOG_BOT_TOKEN = config.api.log_to_tg.bot_token
+TG_LOG_CHAT_ID = config.api.log_to_tg.chat_id
+TG_LOGIN_THREAD_ID = config.api.log_to_tg.login_thread_id
+TG_PLAY_THREAD_ID = config.api.log_to_tg.play_thread_id
+IGNORED_USERS_SET = config.api.log_to_tg.ignore_users
 
 # --- 事件常量 ---
 EVENT_USER_AUTHENTICATED = 'user.authenticated'

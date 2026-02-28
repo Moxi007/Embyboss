@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from .api import emby_api_route, user_api_route, auth_api_route, checkin_api_route, lineauth_api_route, event_api_route
-from bot import api as config_api, LOGGER
+from bot import LOGGER, config
 
 
 class Web:
@@ -43,7 +43,7 @@ class Web:
         # 配字 CORS 的中间件
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=config_api.allow_origins,  # 来源，可能有多个服务器的nginx，懒得写入配置会直接全梭了，需要的可以自己在字段里面加
+            allow_origins=config.api.allow_origins,  # 来源，可能有多个服务器的nginx，懒得写入配置会直接全梭了，需要的可以自己在字段里面加
             allow_credentials=True,  # 允许使用证书
             allow_methods=["*"],  # 允许跨域的方法
             allow_headers=["*"])  # 允许的请求头
@@ -52,7 +52,7 @@ class Web:
         """
         启动 Web API 服务。
         """
-        if not config_api.status:
+        if not config.api.status:
             LOGGER.info("【API服务】未配置，跳过...")
             return
         LOGGER.info("【API服务】检测有配置，马上启动服务...")
@@ -60,7 +60,7 @@ class Web:
 
         self.init_api()
         self.web_api = uvicorn.Server(
-            config=uvicorn.Config(self.app, host=config_api.http_url, port=config_api.http_port, access_log=False)
+            config=uvicorn.Config(self.app, host=config.api.http_url, port=config.api.http_port, access_log=False)
         )
         server_config = self.web_api.config
         if not server_config.loaded:
@@ -70,7 +70,7 @@ class Web:
             await self.web_api.startup()
         except OSError as e:
             if e.errno == errno.EADDRINUSE:
-                LOGGER.error(f"【API服务】端口 {config_api.http_port} 被占用，请修改配置文件.")
+                LOGGER.error(f"【API服务】端口 {config.api.http_port} 被占用，请修改配置文件.")
             LOGGER.error("【API服务】启动失败，退出ing...")
             raise SystemExit from None
         if self.web_api.should_exit:

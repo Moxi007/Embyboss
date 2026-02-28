@@ -4,7 +4,7 @@ from datetime import datetime
 from pyrogram import filters
 from pyrogram.types import CallbackQuery
 
-from bot import bot, prefixes, LOGGER, emby_line, owner, bot_photo, schedall, config
+from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.emby import emby
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.fix_bottons import cv_user_playback_reporting, close_it_ikb
@@ -42,11 +42,11 @@ async def login_account(_, msg):
                 f'**🎉 成功创建有效期{days}天 #{name}\n\n'
                 f'• 用户名称 | `{name}`\n'
                 f'• 用户密码 | `{pwd}`\n'
-                f'• 当前线路 | \n{emby_line}\n\n'
+                f'• 当前线路 | \n{config.emby_line}\n\n'
                 f'• 到期时间 | {ex}**')
 
-            if msg.from_user.id != owner:
-                await bot.send_message(owner,
+            if msg.from_user.id != config.owner:
+                await bot.send_message(config.owner,
                                        f"®️ 管理员 {msg.from_user.first_name} - `{msg.from_user.id}` 已经创建了一个非tg绑定用户 #{name} 有效期**{days}**天")
             LOGGER.info(
                 f"【创建非tg账户】：管理员 {msg.from_user.first_name}[{msg.from_user.id}] - 建立了账户 {name}，有效期{days}天 ")
@@ -116,10 +116,10 @@ async def uun_info(_, msg, name = None):
     except AttributeError:
         a = ''
 
-    if e.name and schedall.low_activity and not schedall.check_ex:
+    if e.name and config.schedall.low_activity and not config.schedall.check_ex:
         ex = f'__若{config.activity_check_days}天无观看将封禁__'
 
-    elif e.name and not schedall.low_activity and not schedall.check_ex:
+    elif e.name and not config.schedall.low_activity and not config.schedall.check_ex:
         ex = ' __无需保号，放心食用__'
     else:
         ex = e.ex or '无账户信息'
@@ -140,7 +140,7 @@ async def uun_info(_, msg, name = None):
             f"**· 🍓 当前状态** | {str_lv}\n" \
             f"**· 🍒 创建时间** | {e.cr}\n" \
             f"**· 🚨 到期时间** | **{str_ex}**\n"
-    await asyncio.gather(sendPhoto(msg, photo=bot_photo, caption=text, buttons=cv_user_playback_reporting(e.embyid)), msg.delete())
+    await asyncio.gather(sendPhoto(msg, photo=config.bot_photo, caption=text, buttons=cv_user_playback_reporting(e.embyid)), msg.delete())
 
 
 @bot.on_callback_query(filters.regex('userip') & admins_on_filter)

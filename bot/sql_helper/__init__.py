@@ -2,13 +2,13 @@
 初始化数据库（异步重构版）
 """
 import asyncio
-from bot import db_host, db_user, db_pwd, db_name, db_port, LOGGER
+from bot import LOGGER, config
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 
 # 创建异步 engine 对象 (使用 aiomysql 驱动)
 engine = create_async_engine(
-    f"mysql+aiomysql://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}?charset=utf8mb4",
+    f"mysql+aiomysql://{config.db_user}:{config.db_pwd}@{config.db_host}:{config.db_port}/{config.db_name}?charset=utf8mb4",
     echo=False,
     echo_pool=False,
     pool_size=16,

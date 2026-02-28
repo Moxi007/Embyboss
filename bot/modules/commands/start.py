@@ -15,11 +15,11 @@ from bot.func_helper.filters import user_in_group_filter, user_in_group_on_filte
 from bot.func_helper.msg_utils import deleteMessage, sendMessage, sendPhoto, callAnswer, editMessage
 from bot.func_helper.fix_bottons import group_f, judge_start_ikb, judge_group_ikb, cr_kk_ikb
 from bot.modules.extra import user_cha_ip
-from bot import bot, prefixes, group, bot_photo, ranks, sakura_b
+from bot import bot, config, prefixes
 
 
 # 反命令提示
-@bot.on_message((filters.command('start', prefixes) | filters.command('count', prefixes)) & filters.chat(group))
+@bot.on_message((filters.command('start', prefixes) | filters.command('count', prefixes)) & filters.chat(config.group))
 async def ui_g_command(_, msg):
     await asyncio.gather(deleteMessage(msg),
                          sendMessage(msg,
@@ -61,7 +61,7 @@ async def p_start(_, msg):
                 return await user_cha_ip(_, msg, name)
             else:
                 return await sendMessage(msg, '💢 你不是管理员，无法使用此命令')
-        if u in f'{ranks.logo}' or u == str(msg.from_user.id):
+        if u in f'{config.ranks.logo}' or u == str(msg.from_user.id):
             await asyncio.gather(msg.delete(), rgs_code(_, msg, register_code=msg.command[1]))
         else:
             await asyncio.gather(sendMessage(msg, '🤺 你也想和bot击剑吗 ?'), msg.delete())
@@ -78,16 +78,16 @@ async def p_start(_, msg):
         text = f"▎__欢迎进入用户面板！{msg.from_user.first_name}__\n\n" \
                f"**· 🆔 用户のID** | `{msg.from_user.id}`\n" \
                f"**· 📊 当前状态** | {lv}\n" \
-               f"**· 🍒 积分{sakura_b}** | {us}\n" \
+               f"**· 🍒 积分{config.money}** | {us}\n" \
                f"**· ®️ 注册状态** | {stat}\n" \
                f"**· 🎫 总注册限制** | {all_user}\n" \
                f"**· 🎟️ 可注册席位** | {all_user - tem}\n"
         if not embyid:
             await asyncio.gather(deleteMessage(msg),
-                                 sendPhoto(msg, bot_photo, caption=text, buttons=judge_start_ikb(is_admin, False)))
+                                 sendPhoto(msg, config.bot_photo, caption=text, buttons=judge_start_ikb(is_admin, False)))
         else:
             await asyncio.gather(deleteMessage(msg),
-                                 sendPhoto(msg, bot_photo,
+                                 sendPhoto(msg, config.bot_photo,
                                            f"**✨ 只有你想见我的时候我们的相遇才有意义**\n\n🍉__你好鸭 [{msg.from_user.first_name}](tg://user?id={msg.from_user.id}) 请选择功能__👇",
                                            buttons=judge_start_ikb(is_admin, True)))
 
@@ -112,7 +112,7 @@ async def b_start(_, call):
 async def store_alls(_, call):
     if not await user_in_group_filter(_, call):
         await asyncio.gather(callAnswer(call, "⭐ 返回start"),
-                             deleteMessage(call), sendPhoto(call, bot_photo,
+                             deleteMessage(call), sendPhoto(call, config.bot_photo,
                                                             '💢 拜托啦！请先点击下面加入我们的群组和频道，然后再 /start 一下好吗？',
                                                             judge_group_ikb))
     elif await user_in_group_filter(_, call):

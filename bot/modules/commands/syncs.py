@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from asyncio import sleep
 from pyrogram import filters
 from pyrogram.errors import FloodWait
-from bot import bot, prefixes, bot_photo, LOGGER, owner, group
+from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.emby import emby
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.utils import tem_deluser, split_long_message
@@ -40,12 +40,12 @@ async def sync_emby_group(_, msg):
         return await sendMessage(msg,
                                  '⚠️ 注意: 此操作将删除所有未在群组的Emby账户, 如确定使用请输入 `/syncgroupm true`')
     if confirm_delete == 'true':
-        send = await sendPhoto(msg, photo=bot_photo, caption="⚡群组成员同步任务\n  **正在开启中...消灭未在群组的账户**",
+        send = await sendPhoto(msg, photo=config.bot_photo, caption="⚡群组成员同步任务\n  **正在开启中...消灭未在群组的账户**",
                             send=True)
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
         LOGGER.info(f"{sign_name} 执行了群组成员同步任务")
         # 减少api调用
-        members = [member.user.id async for member in bot.get_chat_members(group[0])]
+        members = [member.user.id async for member in bot.get_chat_members(config.group[0])]
         r = await get_all_emby(Emby.lv == 'b')
         if not r:
             return await send.edit("⚡群组同步任务\n\n结束！搞毛，没有人。")
@@ -94,7 +94,7 @@ async def sync_emby_group(_, msg):
 @bot.on_message(filters.command('syncunbound', prefixes) & admins_on_filter)
 async def sync_emby_unbound(_, msg):
     await deleteMessage(msg)
-    send = await sendPhoto(msg, photo=bot_photo, caption="⚡扫描未绑定Bot任务\n  **正在开启中...消灭扫描bot的emby账户**",
+    send = await sendPhoto(msg, photo=config.bot_photo, caption="⚡扫描未绑定Bot任务\n  **正在开启中...消灭扫描bot的emby账户**",
                            send=True)
     sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
     LOGGER.info(f"{sign_name} 执行了扫描未绑定Bot任务")
@@ -148,7 +148,7 @@ async def sync_emby_unbound(_, msg):
     LOGGER.info(f"{sign_name} 扫描未绑定Bot任务结束，共检索出 {b} 个账户， {a}个未绑定，耗时：{times:.3f}s")
 
 
-@bot.on_message(filters.command('bindall_id', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('bindall_id', prefixes) & filters.user(config.owner))
 async def bindall_id(_, msg):
     await deleteMessage(msg)
     send = await msg.reply(f'** 一键更新用户们Emby_id，正在启动ing，请等待运行结束......**')
@@ -218,7 +218,7 @@ async def clear_deleted_account(_, msg):
         send = await msg.reply("🔍 正在运行清理程序...")
         a = b = 0
         text = '️⛔ 清理结束\n'
-        async for d in bot.get_chat_members(group[0]):  # 以后别写group了,绑定一下聊天群更优雅
+        async for d in bot.get_chat_members(config.group[0]):  # 以后别写group了,绑定一下聊天群更优雅
             b += 1
             try:
                 # and d.is_member or any(keyword in l.user.first_name for keyword in keywords) 关键词检索，没模板不加了
@@ -264,7 +264,7 @@ async def kick_not_emby(_, msg):
                 except Exception as e:
                     LOGGER.info(f"踢出 {cmember} 失败，原因: {e}")
                     pass
-@bot.on_message(filters.command('restore_from_db', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('restore_from_db', prefixes) & filters.user(config.owner))
 async def restore_from_db(_, msg):
     await deleteMessage(msg)
     try:
@@ -277,7 +277,7 @@ async def restore_from_db(_, msg):
         LOGGER.info(
             f"{sign_name} 执行了从数据库中恢复用户到Emby中的操作")
         embyusers = await get_all_emby(Emby.embyid is not None and Emby.embyid != '')
-        group_id = group[0]
+        group_id = config.group[0]
         # 获取当前执行命令的群组成员
         chat_members = [member.user.id async for member in bot.get_chat_members(chat_id=group_id)]
         await sendMessage(msg, '** 恢复中, 请耐心等待... **')
@@ -369,7 +369,7 @@ async def scan_embyname(_, msg):
         f"{sign_name} 扫描重复用户名任务结束，共发现 {len(duplicate_names)} 个重复用户名")
 
 
-@bot.on_message(filters.command('unbanall', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('unbanall', prefixes) & filters.user(config.owner))
 async def unban_all_users(_, msg):
     """
     解除所有用户的禁用状态
@@ -386,7 +386,7 @@ async def unban_all_users(_, msg):
     if confirm_unban == 'true':
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
         LOGGER.info(f"{sign_name} 执行了解除所有用户禁用状态的操作")
-        send = await sendPhoto(msg, photo=bot_photo, caption="⚡解除所有用户禁用状态任务\n  **正在开启中...**",
+        send = await sendPhoto(msg, photo=config.bot_photo, caption="⚡解除所有用户禁用状态任务\n  **正在开启中...**",
                                send=True)
         
         # 从 Emby 库中查询出所有用户
@@ -462,7 +462,7 @@ async def unban_all_users(_, msg):
         LOGGER.info(f"【解除所有用户禁用状态任务结束】 - {sign_name} 共检索出 {len(allusers)} 个 Emby 账户\n成功解禁 {unban_user_in_emby_count} 个Emby账户\n成功设置等级 {unban_user_in_bot_count}个用户\n耗时：{times:.3f}s")
 
 
-@bot.on_message(filters.command('banall', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('banall', prefixes) & filters.user(config.owner))
 async def ban_all_users(_, msg):
     """
     禁用所有用户
@@ -479,7 +479,7 @@ async def ban_all_users(_, msg):
     if confirm_ban == 'true':
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
         LOGGER.info(f"{sign_name} 执行了禁用所有用户的操作")
-        send = await sendPhoto(msg, photo=bot_photo, caption="⚡禁用所有用户任务\n  **正在开启中...**",
+        send = await sendPhoto(msg, photo=config.bot_photo, caption="⚡禁用所有用户任务\n  **正在开启中...**",
                                send=True)
         
         # 从 Emby 库中查询出所有用户
@@ -553,7 +553,7 @@ async def ban_all_users(_, msg):
         LOGGER.info(f"【禁用所有用户任务结束】 - {sign_name} 共检索出 {len(allusers)} 个 Emby 账户\n成功禁用 {ban_user_in_emby_count} 个Emby账户\n成功设置等级 {ban_user_in_bot_count}个用户\n耗时：{times:.3f}s")
 
 
-@bot.on_message(filters.command('paolu', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('paolu', prefixes) & filters.user(config.owner))
 async def delete_all_users(_, msg):
     """
     跑路命令：从 Emby 库中查询出所有用户，和数据库中用户对比，删除数据库中用户
@@ -569,7 +569,7 @@ async def delete_all_users(_, msg):
     if confirm_delete == 'true':
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
         LOGGER.info(f"{sign_name} 执行了跑路命令（删除所有用户）")
-        send = await sendPhoto(msg, photo=bot_photo, caption="⚡跑路命令任务\n  **正在开启中...（危险操作）**",
+        send = await sendPhoto(msg, photo=config.bot_photo, caption="⚡跑路命令任务\n  **正在开启中...（危险操作）**",
                                send=True)
         
         # 从 Emby 库中查询出所有用户

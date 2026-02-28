@@ -2,13 +2,13 @@ import time
 
 from pyrogram import filters
 
-from bot import bot, owner, prefixes, extra_emby_libs, LOGGER, Now
+from bot import LOGGER, Now, bot, config, prefixes
 from bot.func_helper.msg_utils import sendMessage, deleteMessage
 from bot.sql_helper.sql_emby import get_all_emby, Emby
 from bot.func_helper.emby import emby
 
 # embylibs_block
-@bot.on_message(filters.command('embylibs_blockall', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('embylibs_blockall', prefixes) & filters.user(config.owner))
 async def embylibs_blockall(_, msg):
     await deleteMessage(msg)
     reply = await msg.reply(f"🍓 正在处理ing····, 正在更新所有用户的媒体库访问权限")
@@ -51,7 +51,7 @@ async def embylibs_blockall(_, msg):
         f"【关闭媒体库任务结束】 - {msg.from_user.id} 共检索出 {allcount} 个账户，成功关闭 {successcount}个，耗时：{times:.3f}s")
 
 # embylibs_unblock
-@bot.on_message(filters.command('embylibs_unblockall', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('embylibs_unblockall', prefixes) & filters.user(config.owner))
 async def embylibs_unblockall(_, msg):
     await deleteMessage(msg)
     reply = await msg.reply(f"🍓 正在处理ing····, 正在更新所有用户的媒体库访问权限")
@@ -93,7 +93,7 @@ async def embylibs_unblockall(_, msg):
     LOGGER.info(
         f"【开启媒体库任务结束】 - {msg.from_user.id} 共检索出 {allcount} 个账户，成功开启 {successcount}个，耗时：{times:.3f}s")
 
-@bot.on_message(filters.command('extraembylibs_blockall', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('extraembylibs_blockall', prefixes) & filters.user(config.owner))
 async def extraembylibs_blockall(_, msg):
     await deleteMessage(msg)
     reply = await msg.reply(f"🍓 正在处理ing····, 正在更新所有用户的额外媒体库访问权限")
@@ -113,7 +113,7 @@ async def extraembylibs_blockall(_, msg):
             allcount += 1
             try:
                 # 使用封装的隐藏额外媒体库方法
-                re = await emby.hide_folders_by_names(i.embyid, extra_emby_libs)
+                re = await emby.hide_folders_by_names(i.embyid, config.extra_emby_libs)
                 if re is True:
                     successcount += 1
                     text += f'已关闭了 [{i.name}](tg://user?id={i.tg}) 的额外媒体库权限\n'
@@ -138,7 +138,7 @@ async def extraembylibs_blockall(_, msg):
         f"【关闭额外媒体库任务结束】 - {msg.from_user.id} 共检索出 {allcount} 个账户，成功关闭 {successcount}个，耗时：{times:.3f}s")
 
 
-@bot.on_message(filters.command('extraembylibs_unblockall', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('extraembylibs_unblockall', prefixes) & filters.user(config.owner))
 async def extraembylibs_unblockall(_, msg):
     await deleteMessage(msg)
     reply = await msg.reply(f"🍓 正在处理ing····, 正在更新所有用户的额外媒体库访问权限")
@@ -158,7 +158,7 @@ async def extraembylibs_unblockall(_, msg):
             allcount += 1
             try:
                 # 使用封装的显示额外媒体库方法
-                re = await emby.show_folders_by_names(i.embyid, extra_emby_libs)
+                re = await emby.show_folders_by_names(i.embyid, config.extra_emby_libs)
                 if re is True:
                     successcount += 1
                     text += f'已开启了 [{i.name}](tg://user?id={i.tg}) 的额外媒体库权限\n'

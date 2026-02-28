@@ -10,16 +10,16 @@ from pyrogram.enums import ParseMode
 from fastapi import APIRouter, Request, Response
 from bot.func_helper.emby import emby
 from bot.func_helper.shared_cache import host_cache
-from bot import LOGGER, group, bot, owner, api as config_api
+from bot import LOGGER, bot, config
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 
 route = APIRouter()
 
 # --- 应用配置 ---
-TG_LOG_BOT_TOKEN = config_api.log_to_tg.bot_token
-TG_LOG_CHAT_ID = config_api.log_to_tg.chat_id
-TG_LOGIN_THREAD_ID = config_api.log_to_tg.login_thread_id
-EMBY_WHITE_LIST_HOSTS = config_api.emby_whitelist_line_host
+TG_LOG_BOT_TOKEN = config.api.log_to_tg.bot_token
+TG_LOG_CHAT_ID = config.api.log_to_tg.chat_id
+TG_LOGIN_THREAD_ID = config.api.log_to_tg.login_thread_id
+EMBY_WHITE_LIST_HOSTS = config.api.emby_whitelist_line_host
 AUTH_COOLDOWN_SECONDS = 300
 auth_cache = {}
 
@@ -109,7 +109,7 @@ async def handle_auth_request(request: Request):
                     f"ℹ️ **状态**: 已自动封禁"
                 )
                 try:
-                    await bot.send_message(owner, owner_message, parse_mode=ParseMode.MARKDOWN)
+                    await bot.send_message(config.owner, owner_message, parse_mode=ParseMode.MARKDOWN)
                     await send_log_message(owner_message)
                 except Exception as e:
                     LOGGER.error(f"向 Owner 发送封禁成功通知失败: {e}")
@@ -122,7 +122,7 @@ async def handle_auth_request(request: Request):
                     f"‼️ 如有疑问，请联系管理员处理"
                 )
                 try:
-                    sent_message = await bot.send_message(group[0], group_message, parse_mode=ParseMode.MARKDOWN)
+                    sent_message = await bot.send_message(config.group[0], group_message, parse_mode=ParseMode.MARKDOWN)
                     await sent_message.forward(user_record.tg)
                 except Exception as e:
                     LOGGER.error(f"发送 Telegram 封禁通知到群组或用户失败: {e}")
@@ -135,7 +135,7 @@ async def handle_auth_request(request: Request):
                     f"‼️ **处置**: API调用失败，**请立即手动检查并封禁该用户！**"
                 )
                 try:
-                    await bot.send_message(owner, owner_message, parse_mode=ParseMode.MARKDOWN)
+                    await bot.send_message(config.owner, owner_message, parse_mode=ParseMode.MARKDOWN)
                     await send_log_message(owner_message)
                 except Exception as e:
                     LOGGER.error(f"向 Owner 发送封禁失败通知失败: {e}")
@@ -146,7 +146,7 @@ async def handle_auth_request(request: Request):
                     f"⛔️ 状态: 自动封禁失败！\n\n"
                     f"‼️ **请立即手动检查并封禁该用户！**"
                 )
-                await bot.send_message(group[0], group_message, parse_mode=ParseMode.MARKDOWN)
+                await bot.send_message(config.group[0], group_message, parse_mode=ParseMode.MARKDOWN)
             
             return Response(content="False", status_code=401, media_type="text/plain")
         else:

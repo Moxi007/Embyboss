@@ -5,7 +5,7 @@ kk - 纯装x
 import pyrogram
 from pyrogram import filters
 from pyrogram.errors import BadRequest
-from bot import bot, prefixes, owner, admins, LOGGER, extra_emby_libs, config
+from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.emby import emby
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.fix_bottons import cr_kk_ikb, gog_rester_ikb
@@ -22,7 +22,7 @@ async def user_info(_, msg):
         try:
             uid = int(msg.command[1])
             if not msg.sender_chat:
-                if msg.from_user.id != owner and uid == owner:
+                if msg.from_user.id != config.owner and uid == config.owner:
                     return await sendMessage(msg,
                                              f"⭕ [{msg.from_user.first_name}](tg://user?id={msg.from_user.id})！不可以偷窥主人",
                                              timer=60)
@@ -43,7 +43,7 @@ async def user_info(_, msg):
     else:
         uid = msg.reply_to_message.from_user.id
         try:
-            if msg.from_user.id != owner and uid == owner:
+            if msg.from_user.id != config.owner and uid == config.owner:
                 return await msg.reply(
                     f"⭕ [{msg.from_user.first_name}](tg://user?id={msg.from_user.id})！不可以偷窥主人")
         except AttributeError:
@@ -62,7 +62,7 @@ async def kk_user_ban(_, call):
 
     await call.answer("✅ ok")
     b = int(call.data.split("-")[1])
-    if b in admins and b != call.from_user.id:
+    if b in config.admins and b != call.from_user.id:
         return await editMessage(call,
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决",
                                  timer=60)
@@ -115,11 +115,11 @@ async def user_embyextralib_unblock(_, call):
     if success:
         try:
             # 使用封装的显示额外媒体库方法
-            re = await emby.show_folders_by_names(embyid, extra_emby_libs)
+            re = await emby.show_folders_by_names(embyid, config.extra_emby_libs)
             
             if re is True:
                 await editMessage(call, f'🌟 好的，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n'
-                                        f'已开启了 [TA](tg://user?id={tgid}) 的额外媒体库权限\n{extra_emby_libs}')
+                                        f'已开启了 [TA](tg://user?id={tgid}) 的额外媒体库权限\n{config.extra_emby_libs}')
             else:
                 await editMessage(call,
                                   f'🌧️ Error！管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n操作失败请检查设置！')
@@ -145,11 +145,11 @@ async def user_embyextralib_block(_, call):
     if success:
         try:
             # 使用封装的隐藏额外媒体库方法
-            re = await emby.hide_folders_by_names(embyid, extra_emby_libs)
+            re = await emby.hide_folders_by_names(embyid, config.extra_emby_libs)
             
             if re is True:
                 await editMessage(call, f'🌟 好的，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n'
-                                        f'已关闭了 [TA](tg://user?id={tgid}) 的额外媒体库权限\n{extra_emby_libs}')
+                                        f'已关闭了 [TA](tg://user?id={tgid}) 的额外媒体库权限\n{config.extra_emby_libs}')
             else:
                 await editMessage(call,
                                   f'🌧️ Error！管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n操作失败请检查设置！')
@@ -167,7 +167,7 @@ async def gift(_, call):
 
     await call.answer("✅ ok")
     b = int(call.data.split("-")[1])
-    if b in admins and b != call.from_user.id:
+    if b in config.admins and b != call.from_user.id:
         return await editMessage(call,
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决")
 
@@ -191,7 +191,7 @@ async def close_emby(_, call):
 
     await call.answer("✅ ok")
     b = int(call.data.split("-")[1])
-    if b in admins and b != call.from_user.id:
+    if b in config.admins and b != call.from_user.id:
         return await editMessage(call,
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决",
                                  timer=60)
@@ -222,7 +222,7 @@ async def fuck_off_m(_, call):
 
     await call.answer("✅ ok")
     user_id = int(call.data.split("-")[1])
-    if user_id in admins and user_id != call.from_user.id:
+    if user_id in config.admins and user_id != call.from_user.id:
         return await editMessage(call,
                                  f"⚠️ 打咩，no，机器人不可以对bot管理员出手喔，请[自己](tg://user?id={call.from_user.id})解决",
                                  timer=60)

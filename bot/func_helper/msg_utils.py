@@ -9,7 +9,7 @@ from pyrogram import filters, enums
 from pyrogram.errors import FloodWait, Forbidden, BadRequest
 from pyrogram.types import CallbackQuery
 from pyromod.exceptions import ListenerTimeout
-from bot import LOGGER, group, bot
+from bot import LOGGER, bot, config
 from typing import Optional
 
 
@@ -30,7 +30,7 @@ async def sendMessage(message, text: str, buttons=None, timer=None, send=False, 
     try:
         if send is True:
             if chat_id is None:
-                chat_id = group[0]
+                chat_id = config.group[0]
             return await bot.send_message(chat_id=chat_id, text=text, reply_markup=buttons, parse_mode=parse_mode)
         # 禁用通知 disable_notification=True,
         send = await message.reply(text=text, quote=True, disable_web_page_preview=True, reply_markup=buttons)
@@ -123,7 +123,7 @@ async def sendPhoto(message, photo, caption=None, buttons=None, timer=None, send
     try:
         if send is True:
             if chat_id is None:
-                chat_id = group[0]
+                chat_id = config.group[0]
             return await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption, reply_markup=buttons, parse_mode=parse_mode)
         # quote=True 引用回复
         send = await message.reply_photo(photo=photo, caption=caption, disable_notification=True,

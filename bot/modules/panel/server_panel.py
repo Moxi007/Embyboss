@@ -4,7 +4,7 @@
 """
 from datetime import datetime, timezone, timedelta
 from pyrogram import filters
-from bot import bot, emby_line, emby_whitelist_line
+from bot import bot, config
 from bot.func_helper.emby import emby
 from bot.func_helper.filters import user_in_group_on_filter
 from bot.sql_helper.sql_emby import sql_get_emby
@@ -39,10 +39,10 @@ async def server(_, call):
 
     pwd = '空' if not data.pwd else data.pwd
     real_pwd = data.pwd or ""
-    emby_line_variable = emby_line.format(name=data.name, pwd=real_pwd)
+    emby_line_variable = config.emby_line.format(name=data.name, pwd=real_pwd)
     emby_whitelist_line_variable = ''
-    if emby_whitelist_line:
-        emby_whitelist_line_variable = emby_whitelist_line.format(name=data.name, pwd=real_pwd)
+    if config.emby_whitelist_line:
+        emby_whitelist_line_variable = config.emby_whitelist_line.format(name=data.name, pwd=real_pwd)
     line = ''
     if data.lv == 'b':
         line = f'{emby_line_variable}'

@@ -3,7 +3,7 @@
 """
 from datetime import timedelta, datetime
 
-from bot import bot, _open, LOGGER, bot_photo, ranks
+from bot import LOGGER, bot, config
 from bot.func_helper.emby import emby
 from bot.func_helper.fix_bottons import register_code_ikb
 from bot.func_helper.msg_utils import sendMessage, sendPhoto
@@ -20,7 +20,7 @@ def is_renew_code(input_string):
 
 
 async def rgs_code(_, msg, register_code):
-    if _open.stat:
+    if config.open.stat:
         return await sendMessage(msg, "🤧 自由注册开启下无法使用注册码。")
 
     data = await sql_get_emby(tg=msg.from_user.id)
@@ -84,7 +84,7 @@ async def rgs_code(_, msg, register_code):
                 return await sendMessage(msg, "⛔ **你输入了一个错误de注册码，请确认好重试。**")
             code_prefix = register_code.split('-')[0]
             # 判断此注册码使用者为管理员赠送的tg, 如果不是则拒绝使用
-            if code_prefix not in ranks.logo and code_prefix != str(msg.from_user.id):
+            if code_prefix not in config.ranks.logo and code_prefix != str(msg.from_user.id):
                 return await sendMessage(msg, '🤺 你也想和bot击剑吗 ?', timer = 60)
             re = session.query(Code).filter(Code.code == register_code, Code.used.is_(None)).with_for_update().update(
                 {Code.used: msg.from_user.id, Code.usedtime: datetime.now()})
@@ -98,7 +98,7 @@ async def rgs_code(_, msg, register_code):
             x = data.us + us1
             session.query(Emby).filter(Emby.tg == msg.from_user.id).update({Emby.us: x})
             session.commit()
-            await sendPhoto(msg, photo=bot_photo,
+            await sendPhoto(msg, photo=config.bot_photo,
                             caption=f'🎊 少年郎，恭喜你，已经收到了 [{first.first_name}](tg://user?id={tg1}) 发送的邀请注册资格\n\n请选择你的选项~',
                             buttons=register_code_ikb)
             new_code = register_code[:-7] + "░" * 7

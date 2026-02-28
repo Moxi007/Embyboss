@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timedelta
 from typing import Dict, List
 from pyrogram import filters
-from bot import bot, prefixes, sakura_b, game, LOGGER
+from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.msg_utils import deleteMessage
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 from bot.func_helper.win_rate_stats import WinRateStatsManager
@@ -134,7 +134,7 @@ class BettingSystem:
         return f"""🎲 新的赌局已开始！
 
 发起者：{user_link}
-手续费：{game.magnification} {sakura_b}
+手续费：{config.game.magnification} {config.money}
 {duration_text}
 随机方式：{random_method}
 开奖时间：{bet_info['end_time'].strftime('%H:%M:%S')}
@@ -182,7 +182,7 @@ class BettingSystem:
         if not user:
             return f"❌ 您还未在系统中初始化，请先私信我激活"
 
-        if not game.bet_no_emby:
+        if not config.game.bet_no_emby:
             if not user.embyid:
                 return "❌ 您还未注册Emby账户"
         
@@ -210,7 +210,7 @@ class BettingSystem:
 
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"✅ 您已成功追加赌局\n💰 追加金额：{amount_int} {sakura_b}\n💳 当前余额：{new_balance} {sakura_b}"
+                    text=f"✅ 您已成功追加赌局\n💰 追加金额：{amount_int} {config.money}\n💳 当前余额：{new_balance} {config.money}"
                 )
                 
                 # 更新参与记录
@@ -230,13 +230,13 @@ class BettingSystem:
                 return f"""✅ {user_link} 追加投注成功！
 
 投注类型：{bet_type}
-追加金额：{amount_int} {sakura_b}
-总投注额：{int(existing_participant["amount"])} {sakura_b}
+追加金额：{amount_int} {config.money}
+总投注额：{int(existing_participant["amount"])} {config.money}
 开奖时间：{bet_info["end_time"].strftime("%H:%M:%S")}
 当前赔率：
 大：{odds_info['big_odds']:.2f}倍
 小：{odds_info['small_odds']:.2f}倍
-总投注：{int(bet_info['total_amount'])} {sakura_b}"""
+总投注：{int(bet_info['total_amount'])} {config.money}"""
                 
             except Exception as e:
                 LOGGER.info(f"用户 {user_id} 投注失败，原因: 追加投注时发生异常 - {str(e)}")
@@ -251,7 +251,7 @@ class BettingSystem:
                 
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"✅ 您已成功参与赌局\n💰 投注金额：{amount_int} {sakura_b}\n💳 当前余额：{new_balance} {sakura_b}"
+                    text=f"✅ 您已成功参与赌局\n💰 投注金额：{amount_int} {config.money}\n💳 当前余额：{new_balance} {config.money}"
                 )
                 
                 # 添加参与记录
@@ -278,12 +278,12 @@ class BettingSystem:
                 return f"""✅ {user_link} 投注成功！
 
 投注类型：{bet_type}
-投注金额：{amount_int} {sakura_b}
+投注金额：{amount_int} {config.money}
 开奖时间：{bet_info["end_time"].strftime("%H:%M:%S")}
 当前赔率：
 大：{odds_info['big_odds']:.2f}倍
 小：{odds_info['small_odds']:.2f}倍
-总投注：{int(bet_info['total_amount'])} {sakura_b}"""
+总投注：{int(bet_info['total_amount'])} {config.money}"""
                 
             except Exception as e:
                 LOGGER.info(f"用户 {user_id} 投注失败，原因: {str(e)}")
@@ -391,7 +391,7 @@ class BettingSystem:
                 if stats:
                     win_rate_text = f" ({WinRateStatsManager.format_win_rate(stats)})"
                 
-                result_message += f"🏆 {user_link} 获得 {personal_reward} {sakura_b}{win_rate_text}\n"
+                result_message += f"🏆 {user_link} 获得 {personal_reward} {config.money}{win_rate_text}\n"
         else:
             result_message += "😅 没有获胜者，投注金额不予退还\n"
         
@@ -430,8 +430,8 @@ class BettingSystem:
                             chat_id=participant['user_id'],
                             text=f"🎉 赌局开奖通知\n\n"
                                  f"恭喜中奖！\n"
-                                 f"获得：{personal_reward} {sakura_b}\n"
-                                 f"当前余额：{new_balance} {sakura_b}"
+                                 f"获得：{personal_reward} {config.money}\n"
+                                 f"当前余额：{new_balance} {config.money}"
                         )
                     else:
                         new_balance = user.iv
@@ -441,15 +441,15 @@ class BettingSystem:
                                 text=f"😌 赌局开奖通知\n\n"
                                      f"本次无人中奖\n"
                                      f"投注金额不予退还\n"
-                                     f"当前余额：{new_balance} {sakura_b}"
+                                     f"当前余额：{new_balance} {config.money}"
                             )
                         else:
                             await bot.send_message(
                                 chat_id=participant['user_id'],
                                 text=f"😔 赌局开奖通知\n\n"
                                      f"很遗憾，这次没有中奖\n"
-                                     f"损失：{participant['amount']} {sakura_b}\n"
-                                     f"当前余额：{new_balance} {sakura_b}"
+                                     f"损失：{participant['amount']} {config.money}\n"
+                                     f"当前余额：{new_balance} {config.money}"
                             )
             except Exception as e:
                 LOGGER.info(f"Failed to send bet result notification: {e}")
@@ -464,7 +464,7 @@ betting_system = BettingSystem()
 @bot.on_message(filters.command('startbet', prefixes=prefixes) & filters.group)
 # 定义一个异步函数，用于处理开始下注的命令
 async def handle_startbet_command(client, message):
-    if not game.bet_open:
+    if not config.game.bet_open:
         try:
             await message.delete()
         except:
@@ -481,7 +481,7 @@ async def handle_startbet_command(client, message):
         asyncio.create_task(deleteMessage(error_message, 60))
         return
 
-    if not game.bet_no_emby:
+    if not config.game.bet_no_emby:
         if not user.embyid:
             error_message = await message.reply_text("❌ 您还未注册Emby账户，无法发起赌局")
             asyncio.create_task(deleteMessage(error_message, 60))
@@ -509,18 +509,18 @@ async def handle_startbet_command(client, message):
     LOGGER.info(f"用户 {user_id} 创建赌局，解析的时长: {duration} 分钟")
 
     # 检查用户金币是否足够支付手续费
-    if user.iv < game.magnification:
-        error_message = await message.reply_text(f"❌ 你的余额不够支付 {game.magnification} {sakura_b} 手续费哦～")
+    if user.iv < config.game.magnification:
+        error_message = await message.reply_text(f"❌ 你的余额不够支付 {config.game.magnification} {config.money} 手续费哦～")
         asyncio.create_task(deleteMessage(error_message, 60))
         return
 
     # 扣除手续费
-    new_balance = user.iv - game.magnification
+    new_balance = user.iv - config.game.magnification
     await sql_update_emby(Emby.tg == user_id, iv=new_balance)
 
     await bot.send_message(
         chat_id=user_id,
-        text=f"✅ 您已成功创建赌局\n💰 扣除手续费：{game.magnification} {sakura_b}\n💳 当前余额：{new_balance} {sakura_b}"
+        text=f"✅ 您已成功创建赌局\n💰 扣除手续费：{config.game.magnification} {config.money}\n💳 当前余额：{new_balance} {config.money}"
     )
 
     result = await betting_system.start_bet(chat_id, user_id, message_text, duration)
@@ -530,7 +530,7 @@ async def handle_startbet_command(client, message):
 
 @bot.on_message(filters.command('bet', prefixes=prefixes) & filters.group)
 async def handle_bet_command(client, message):
-    if not game.bet_open:
+    if not config.game.bet_open:
         try:
             await message.delete()
         except:

@@ -15,7 +15,7 @@ from .checkin import route as checkin_route
 from .lineauth import route as lineauth_route
 from .event import route as event_route
 from .login import router as login_router
-from bot import bot_token, LOGGER
+from bot import LOGGER, config
 
 emby_api_route = APIRouter(prefix="/emby", tags=["对接Emby的接口"])
 user_api_route = APIRouter(prefix="/user", tags=["对接用户信息的接口"])
@@ -32,7 +32,7 @@ async def verify_token(request: Request):
         if not token:
             raise HTTPException(status_code=401, detail="No token provided")
         # 验证token是否与bot token匹配
-        if token != bot_token:
+        if token != config.bot_token:
             LOGGER.warning(f"Invalid token attempt: {token[:10]}...")
             raise HTTPException(status_code=403, detail="Invalid token")
         return True

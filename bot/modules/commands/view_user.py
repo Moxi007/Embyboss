@@ -1,6 +1,6 @@
 from bot.func_helper.emby import emby
 from pyrogram import filters
-from bot import bot, bot_name
+from bot import bot, config
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.msg_utils import editMessage
 from bot.func_helper.fix_bottons import whitelist_page_ikb, normaluser_page_ikb,devices_page_ikb 
@@ -98,6 +98,6 @@ async def user_devices(_, call):
 
     text = '**💠 用户设备列表**\n\n'
     for name, device_count, ip_count in result:
-        text += f'用户名: [{name}](https://t.me/{bot_name}?start=userip-{name}) | 设备: {device_count} | IP: {ip_count}\n'
+        text += f'用户名: [{name}](https://t.me/{config.bot_name}?start=userip-{name}) | 设备: {device_count} | IP: {ip_count}\n'
     text += f"\n第 {page} 页"
     await editMessage(call, text, buttons=devices_page_ikb(has_prev, has_next, page))

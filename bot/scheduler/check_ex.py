@@ -6,7 +6,7 @@ from datetime import timedelta, datetime
 from pyrogram.errors import FloodWait
 from sqlalchemy import and_
 from asyncio import sleep
-from bot import bot, group, LOGGER, _open, config
+from bot import LOGGER, bot, config
 from bot.func_helper.emby import emby
 from bot.func_helper.utils import tem_deluser
 from bot.sql_helper.sql_emby import Emby, get_all_emby, sql_update_emby
@@ -40,8 +40,8 @@ async def check_expired():
             except Exception as e:
                 LOGGER.error(e)
 
-        elif _open.exchange and r.iv >= _open.exchange_cost:
-            b = r.iv - _open.exchange_cost
+        elif config.open.exchange and r.iv >= config.open.exchange_cost:
+            b = r.iv - config.open.exchange_cost
             if await sql_update_emby(Emby.tg == r.tg, ex=ext, iv=b):
                 text = f'【到期检测】\n#id{r.tg} 续期账户 [{r.name}](tg://user?id={r.tg})\n' \
                        f'在当前时间自动续期30天\n' \
@@ -73,12 +73,12 @@ async def check_expired():
                 LOGGER.error(text)
             try:
                 send = await bot.send_message(r.tg, text)
-                await send.forward(group[0])
+                await send.forward(config.group[0])
             except FloodWait as f:
                 LOGGER.warning(str(f))
                 await sleep(f.value * 1.2)
                 send = await bot.send_message(r.tg, text)
-                await send.forward(group[0])
+                await send.forward(config.group[0])
             except Exception as e:
                 LOGGER.error(e)
 
@@ -108,8 +108,8 @@ async def check_expired():
             except Exception as e:
                 LOGGER.error(e)
 
-        elif _open.exchange and c.iv >= _open.exchange_cost:
-            c_iv = c.iv - _open.exchange_cost
+        elif config.open.exchange and c.iv >= config.open.exchange_cost:
+            c_iv = c.iv - config.open.exchange_cost
             if await emby.emby_change_policy(emby_id=c.embyid, disable=False):
                 if await sql_update_emby(Emby.tg == c.tg, lv='b', ex=ext, iv=c_iv):
                     text = f'【到期检测】\n#id{c.tg} 解封账户 [{c.name}](tg://user?id={c.tg})\n在当前时间自动续期30天\n📅实时到期：{ext.strftime("%Y-%m-%d %H:%M:%S")}'
@@ -144,12 +144,12 @@ async def check_expired():
                 LOGGER.warning(text)
             try:
                 send = await bot.send_message(c.tg, text)
-                await send.forward(group[0])
+                await send.forward(config.group[0])
             except FloodWait as f:
                 LOGGER.warning(str(f))
                 await sleep(f.value * 1.2)
                 send = await bot.send_message(c.tg, text)
-                await send.forward(group[0])
+                await send.forward(config.group[0])
             except Exception as e:
                 LOGGER.error(e)
 
@@ -167,10 +167,10 @@ async def check_expired():
         else:
             text = f'【封禁检测】- 到期封印非TG账户：`{e.name}` embyapi操作失败，请手动处理'
         try:
-            await bot.send_message(group[0], text)
+            await bot.send_message(config.group[0], text)
         except FloodWait as f:
             LOGGER.warning(str(f))
             await sleep(f.value * 1.2)
-            await bot.send_message(group[0], text)
+            await bot.send_message(config.group[0], text)
         except Exception as e:
             LOGGER.error(e)

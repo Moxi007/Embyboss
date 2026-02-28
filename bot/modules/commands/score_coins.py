@@ -9,7 +9,7 @@ import asyncio
 from bot.schemas import MAX_INT_VALUE, MIN_INT_VALUE
 from pyrogram import filters
 from pyrogram.errors import BadRequest
-from bot import bot, prefixes, LOGGER, sakura_b
+from bot import LOGGER, bot, config, prefixes
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.msg_utils import sendMessage, deleteMessage
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
@@ -84,11 +84,11 @@ async def coins_user(_, msg):
     
     if await sql_update_emby(Emby.tg == uid, iv=us):
         await asyncio.gather(sendMessage(msg,
-                                         f"· 🎯 {gm_name} 调节了 [{first.first_name}](tg://user?id={uid}) {sakura_b}： {b}"
-                                         f"\n· 🎟️ 实时{sakura_b}: **{us}**"),
+                                         f"· 🎯 {gm_name} 调节了 [{first.first_name}](tg://user?id={uid}) {config.money}： {b}"
+                                         f"\n· 🎟️ 实时{config.money}: **{us}**"),
                              msg.delete())
         LOGGER.info(
-            f"【admin】[{sakura_b}]- {gm_name} 对 {first.first_name}-{uid}  {b}{sakura_b}")
+            f"【admin】[{config.money}]- {gm_name} 对 {first.first_name}-{uid}  {b}{config.money}")
     else:
         await sendMessage(msg, '⚠️ 数据库操作失败，请检查')
-        LOGGER.info(f"【admin】[{sakura_b}]：{gm_name} 对 {first.first_name}-{uid} 数据操作失败")
+        LOGGER.info(f"【admin】[{config.money}]：{gm_name} 对 {first.first_name}-{uid} 数据操作失败")

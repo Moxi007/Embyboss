@@ -2,45 +2,44 @@ import os
 
 import asyncio
 
-from bot import bot, owner, LOGGER, db_is_docker, db_docker_name, db_host, db_name, db_user, db_pwd, \
-    db_backup_dir, db_backup_maxcount, db_port
+from bot import LOGGER, bot, config
 from bot.func_helper.backup_db_utils import BackupDBUtils
 
 
 class DbBackupUtils:
     # 数据库的相关配置
-    host = db_host
-    user = db_user
-    port = db_port
-    password = db_pwd
-    database_name = db_name
-    backup_dir = db_backup_dir
-    max_backup_count = db_backup_maxcount
+    host = config.db_host
+    user = config.db_user
+    port = config.db_port
+    password = config.db_pwd
+    database_name = config.db_name
+    backup_dir = config.db_backup_dir
+    max_backup_count = config.db_backup_maxcount
     docker_mode = os.environ.get('DOCKER_MODE') == "1"
-    docker_name = db_docker_name
+    docker_name = config.db_docker_name
 
     @classmethod
     async def backup_db(cls):
         backup_file = None
         # 如果是在docker模式下运行的此程序，使用BackupDBUtils.backup_mysql_db的方式备份数据库（此镜像中已经安装了mysqldump工具）
-        if os.environ.get('DOCKER_MODE') == "1" or not db_is_docker:
+        if os.environ.get('DOCKER_MODE') == "1" or not config.db_is_docker:
             backup_file = await BackupDBUtils.backup_mysql_db(
-                host=db_host,
-                port=db_port,
-                user=db_user,
-                password=db_pwd,
-                database_name=db_name,
-                backup_dir=db_backup_dir,
-                max_backup_count=db_backup_maxcount
+                host=config.db_host,
+                port=config.db_port,
+                user=config.db_user,
+                password=config.db_pwd,
+                database_name=config.db_name,
+                backup_dir=config.db_backup_dir,
+                max_backup_count=config.db_backup_maxcount
             )
-        elif db_is_docker:
+        elif config.db_is_docker:
             backup_file = await BackupDBUtils.backup_mysql_db_docker(
-                container_name=db_docker_name,
-                user=db_user,
-                password=db_pwd,
-                database_name=db_name,
-                backup_dir=db_backup_dir,
-                max_backup_count=db_backup_maxcount
+                container_name=config.db_docker_name,
+                user=config.db_user,
+                password=config.db_pwd,
+                database_name=config.db_name,
+                backup_dir=config.db_backup_dir,
+                max_backup_count=config.db_backup_maxcount
             )
         return backup_file
 
@@ -52,12 +51,12 @@ class DbBackupUtils:
             LOGGER.info(f'BOT数据库备份完毕')
             try:
                 await asyncio.gather(bot.send_document(
-                    chat_id=owner,
+                    chat_id=config.owner,
                     document=backup_file,
                     caption=f'BOT数据库备份完毕',
                     disable_notification=True  # 勿打扰
                 ), bot.send_document(
-                    chat_id=owner,
+                    chat_id=config.owner,
                     document='config.json',
                     caption=f'config备份完毕',
                     disable_notification=True  # 勿打扰

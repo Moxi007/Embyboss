@@ -11,7 +11,7 @@ import math
 import random
 from datetime import timedelta, datetime
 from bot.schemas import ExDate, Yulv
-from bot import bot, LOGGER, _open, emby_line, sakura_b, ranks, group, extra_emby_libs, config, bot_name, schedall
+from bot import LOGGER, bot, config
 from pyrogram import filters
 from bot.func_helper.emby import emby
 from bot.func_helper.filters import user_in_group_on_filter
@@ -47,8 +47,8 @@ async def create_user(_, call, us, stats):
         await msg.reply(f'⚠️ 输入格式错误\n\n`{msg.text}`\n **会话已结束！**')
     else:
         # 再次检查限制（双重检查）
-        if _open.tem >= _open.all_user:
-            return await msg.reply(f'**🚫 很抱歉，注册总数({_open.tem})已达限制({_open.all_user})。**')
+        if config.open.tem >= config.open.all_user:
+            return await msg.reply(f'**🚫 很抱歉，注册总数({config.open.tem})已达限制({config.open.all_user})。**')
         
         send = await msg.reply(
             f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}**  安全码：**{emby_pwd2}** \n\n__正在为您初始化账户，更新用户策略__......')
@@ -76,14 +76,14 @@ async def create_user(_, call, us, stats):
             # 更新计数器
             tem_adduser()
             
-            if schedall.check_ex:
+            if config.schedall.check_ex:
                 ex = ex.strftime("%Y-%m-%d %H:%M:%S")
-            elif schedall.low_activity:
+            elif config.schedall.low_activity:
                 ex = f'__若{config.activity_check_days}天无观看将封禁__'
             else:
                 ex = '__无需保号，放心食用__'
                 
-            emby_line_variable = emby_line.format(name=emby_name, pwd=pwd)
+            emby_line_variable = config.emby_line.format(name=emby_name, pwd=pwd)
             await editMessage(send,
                               f'**▎创建用户成功🎉**\n\n'
                               f'· 用户名称 | `{emby_name}`\n'
@@ -109,7 +109,7 @@ async def members(_, call):
     text = f"▎__欢迎进入用户面板！{call.from_user.first_name}__\n\n" \
            f"**· 🆔 用户のID** | `{call.from_user.id}`\n" \
            f"**· 📊 当前状态** | {lv}\n" \
-           f"**· 🍒 积分{sakura_b}** | {us}\n" \
+           f"**· 🍒 积分{config.money}** | {us}\n" \
            f"**· 💠 账号名称** | [{name}](tg://user?id={call.from_user.id})\n" \
            f"**· 🚨 到期时间** | {ex}"
     if not embyid:
@@ -137,20 +137,20 @@ async def create(_, call):
 
     if e.embyid:
         await callAnswer(call, '💦 你已经有账户啦！请勿重复注册。', True)
-    elif not _open.stat and int(e.us) <= 0:
+    elif not config.open.stat and int(e.us) <= 0:
         await callAnswer(call, f'🤖 自助注册已关闭，等待开启或使用注册码注册。', True)
-    elif not _open.stat and int(e.us) > 0:
+    elif not config.open.stat and int(e.us) > 0:
         send = await callAnswer(call, f'🪙 资质核验成功，请稍后。', True)
         if send is False:
             return
         else:
             await create_user(_, call, us=e.us, stats=False)
-    elif _open.stat:
+    elif config.open.stat:
         send = await callAnswer(call, f"🪙 开放注册中，免除资质核验。", True)
         if send is False:
             return
         else:
-            await create_user(_, call, us=_open.open_us, stats=True)
+            await create_user(_, call, us=config.open.open_us, stats=True)
 
 
 # 换绑tg
@@ -190,7 +190,7 @@ async def change_tg(_, call):
                    f'· 用户密码 | `{e.pwd}`\n' \
                    f'· 安全密码 | `{e.pwd2}`（仅发送一次）\n' \
                    f'· 到期时间 | `{e.ex}`\n\n' \
-                   f'· 当前线路：\n{emby_line}\n\n' \
+                   f'· 当前线路：\n{config.emby_line}\n\n' \
                    f'**·在【服务器】按钮 - 查看线路和密码**'
             await bot.send_message(current_id, text)
             LOGGER.info(
@@ -254,7 +254,7 @@ async def change_tg(_, call):
                        f'· 用户密码 | `{pwd[0]}`\n' \
                        f'· 安全密码 | `{e2.pwd2}`（仅发送一次）\n' \
                        f'· 到期时间 | `{e2.ex}`\n\n' \
-                       f'· 当前线路：\n{emby_line}\n\n' \
+                       f'· 当前线路：\n{config.emby_line}\n\n' \
                        f'**·在【服务器】按钮 - 查看线路和密码**'
                 await sendMessage(call,
                                   f'⭕#TG改绑 原emby账户 #{emby_name}\n\n'
@@ -269,7 +269,7 @@ async def change_tg(_, call):
                        f'· 用户密码 | `{e2.pwd}`\n' \
                        f'· 安全密码 | `{pwd[1]}`（仅发送一次）\n' \
                        f'· 到期时间 | `{e2.ex}`\n\n' \
-                       f'· 当前线路：\n{emby_line}\n\n' \
+                       f'· 当前线路：\n{config.emby_line}\n\n' \
                        f'**·在【服务器】按钮 - 查看线路和密码**'
                 await sql_update_emby(Emby.tg == call.from_user.id, embyid=e2.embyid, name=e2.name, pwd=e2.pwd,
                                 pwd2=emby_pwd, lv=e2.lv, cr=e2.cr, ex=e2.ex)
@@ -305,7 +305,7 @@ async def change_tg(_, call):
 
 @bot.on_callback_query(filters.regex('bindtg') & user_in_group_on_filter)
 async def bind_tg(_, call):
-    if not getattr(_open, "bindtg", False):
+    if not getattr(config.open, "bindtg", False):
         await call.answer("⚠️ 绑定TG功能已关闭", show_alert=True)
         return
     d = await sql_get_emby(tg=call.from_user.id)
@@ -355,7 +355,7 @@ async def bind_tg(_, call):
                            f'· 用户密码 | `{pwd[0]}`\n' \
                            f'· 安全密码 | `{pwd[1]}`（仅发送一次）\n' \
                            f'· 到期时间 | `{ex}`\n\n' \
-                           f'· 当前线路：\n{emby_line}\n\n' \
+                           f'· 当前线路：\n{config.emby_line}\n\n' \
                            f'· **在【服务器】按钮 - 查看线路和密码**'
                     await sql_update_emby(Emby.tg == call.from_user.id, embyid=embyid, name=emby_name, pwd=pwd[0],
                                     pwd2=pwd[1], lv='b', cr=datetime.now(), ex=ex)
@@ -576,7 +576,7 @@ async def user_emby_unblock(_, call):
 async def call_exchange(_, call):
     await asyncio.gather(callAnswer(call, '🔋 使用注册/续期码'), deleteMessage(call))
     msg = await ask_return(call, text='🔋 **【使用注册/续期码】**：\n\n'
-                                      f'- 请在120s内对我发送你的注册/续期码，形如\n`{ranks.logo}-xx-xxxx`\n退出点 /cancel',
+                                      f'- 请在120s内对我发送你的注册/续期码，形如\n`{config.ranks.logo}-xx-xxxx`\n退出点 /cancel',
                            button=re_exchange_b_ikb)
     if not msg:
         return
@@ -590,7 +590,7 @@ async def call_exchange(_, call):
 async def do_store(_, call):
     await asyncio.gather(callAnswer(call, '✔️ 欢迎进入兑换商店'),
                          editMessage(call,
-                                     f'**🏪 请选择想要使用的服务：**\n\n🤖 自动{sakura_b}续期状态：{_open.exchange} {_open.exchange_cost}/月',
+                                     f'**🏪 请选择想要使用的服务：**\n\n🤖 自动{config.money}续期状态：{config.open.exchange} {config.open.exchange_cost}/月',
                                      buttons=store_ikb()))
 
 
@@ -604,9 +604,9 @@ async def do_store_reborn(_, call):
     await callAnswer(call,
                      '✔️ 请仔细阅读：\n\n本功能仅为 因未活跃而被封禁的用户解封使用，到期状态下封禁的账户请勿使用，以免浪费积分。',
                      True)
-    if all([e.lv == 'c', e.iv >= _open.exchange_cost, schedall.low_activity]):
+    if all([e.lv == 'c', e.iv >= config.open.exchange_cost, config.schedall.low_activity]):
         await editMessage(call,
-                          f'🏪 您已满足基础要求，此次将花费 {_open.exchange_cost}{sakura_b} 解除未活跃的封禁，确认请回复 /ok，退出 /cancel')
+                          f'🏪 您已满足基础要求，此次将花费 {config.open.exchange_cost}{config.money} 解除未活跃的封禁，确认请回复 /ok，退出 /cancel')
         m = await callListen(call, 120, buttons=re_born_ikb)
         if m is False:
             return
@@ -614,54 +614,54 @@ async def do_store_reborn(_, call):
         elif m.text == '/cancel':
             await asyncio.gather(m.delete(), do_store(_, call))
         else:
-            await sql_update_emby(Emby.tg == call.from_user.id, iv=e.iv - _open.exchange_cost, lv='b')
+            await sql_update_emby(Emby.tg == call.from_user.id, iv=e.iv - config.open.exchange_cost, lv='b')
             await emby.emby_change_policy(emby_id=e.embyid)
-            LOGGER.info(f'【兑换解封】- {call.from_user.id} 已花费 {_open.exchange_cost}{sakura_b},解除封禁')
+            LOGGER.info(f'【兑换解封】- {call.from_user.id} 已花费 {config.open.exchange_cost}{config.money},解除封禁')
             await asyncio.gather(m.delete(), do_store(_, call),
                                  sendMessage(call, '解封成功<(￣︶￣)↗[GO!]\n此消息将在20s后自焚', timer=20))
     else:
         await sendMessage(call, '❌ 不满足以下要求！ヘ(￣ω￣ヘ)\n\n'
                                 '1. 被封禁账户\n'
-                                f'2. 至少持有 {_open.exchange_cost}{sakura_b}\n'
+                                f'2. 至少持有 {config.open.exchange_cost}{config.money}\n'
                                 f'3. 【定时策略】活跃检测开启\n'
                                 f'此消息将在20s后自焚', timer=20)
 
 
 @bot.on_callback_query(filters.regex('store-whitelist'))
 async def do_store_whitelist(_, call):
-    if _open.whitelist:
+    if config.open.whitelist:
         e = await sql_get_emby(tg=call.from_user.id)
         if e is None:
             return
         if not e.embyid or not e.name:
             return await callAnswer(call, '❌ 未查询到账户，不许乱点！', True)
-        if e.iv < _open.whitelist_cost or e.lv == 'a':
+        if e.iv < config.open.whitelist_cost or e.lv == 'a':
             return await callAnswer(call,
-                                    f'🏪 兑换规则：\n当前兑换白名单需要 {_open.whitelist_cost} {sakura_b}，已有白名单无法再次消费。勉励',
+                                    f'🏪 兑换规则：\n当前兑换白名单需要 {config.open.whitelist_cost} {config.money}，已有白名单无法再次消费。勉励',
                                     True)
-        await callAnswer(call, f'🏪 您已满足 {_open.whitelist_cost} {sakura_b}要求', True)
-        await sql_update_emby(Emby.tg == call.from_user.id, lv='a', iv=e.iv - _open.whitelist_cost)
+        await callAnswer(call, f'🏪 您已满足 {config.open.whitelist_cost} {config.money}要求', True)
+        await sql_update_emby(Emby.tg == call.from_user.id, lv='a', iv=e.iv - config.open.whitelist_cost)
         send = await call.message.edit(f'**{random.choice(Yulv.load_yulv().wh_msg)}**\n\n'
-                                       f'🎉 恭喜[{call.from_user.first_name}](tg://user?id={call.from_user.id}) 今日晋升，{ranks["logo"]}白名单')
-        await send.forward(group[0])
-        LOGGER.info(f'【兑换白名单】- {call.from_user.id} 已花费 9999{sakura_b}，晋升白名单')
+                                       f'🎉 恭喜[{call.from_user.first_name}](tg://user?id={call.from_user.id}) 今日晋升，{config.ranks["logo"]}白名单')
+        await send.forward(config.group[0])
+        LOGGER.info(f'【兑换白名单】- {call.from_user.id} 已花费 9999{config.money}，晋升白名单')
     else:
         await callAnswer(call, '❌ 管理员未开启此兑换', True)
 
 
 @bot.on_callback_query(filters.regex('store-invite'))
 async def do_store_invite(_, call):
-    if _open.invite:
+    if config.open.invite:
         e = await sql_get_emby(tg=call.from_user.id)
         if not e:
             return
         # 用户等级为 a（白名单） b(普通用户) c(已禁用) d（未注册用户）
         # 比如当 _open.invite_lv 设置为 d 时，用户等级为 小于等于d 的用户可以兑换，否则无法兑换
-        if e.lv > _open.invite_lv:
+        if e.lv > config.open.invite_lv:
             return await callAnswer(call, '❌ 账号等级不足，无法兑换', True)
-        if e.iv < _open.invite_cost:
+        if e.iv < config.open.invite_cost:
             return await callAnswer(call,
-                                    f'🏪 兑换规则：\n当前兑换注册码至少需要 {_open.invite_cost} {sakura_b}。你的账户只有 {e.iv} {sakura_b}，勉励',
+                                    f'🏪 兑换规则：\n当前兑换注册码至少需要 {config.open.invite_cost} {config.money}。你的账户只有 {e.iv} {config.money}，勉励',
                                     True)
         await editMessage(call,
                           f'🎟️ 请回复创建 [类型] [数量] [模式]\n\n'
@@ -670,7 +670,7 @@ async def do_store_invite(_, call):
                           # f'**续期**： F - 注册码，T - 续期码\n'
                           f'**示例**：`mon 1 link` 记作 1条 月度注册链接 \n'
                           f'**示例**：`sea 1 code` 记作 1条 季度注册码\n'
-                          f'**注意**：兑率 30天 = {_open.invite_cost}{sakura_b}\n'
+                          f'**注意**：兑率 30天 = {config.open.invite_cost}{config.money}\n'
                           f'__取消本次操作，请 /cancel__')
         content = await callListen(call, 120)
         if content is False:
@@ -682,11 +682,11 @@ async def do_store_invite(_, call):
             times, count, method = content.text.split()
             days = getattr(ExDate(), times)
             count = int(count)
-            cost = math.floor((days * count / 30) * _open.invite_cost)
+            cost = math.floor((days * count / 30) * config.open.invite_cost)
             if e.iv < cost:
                 return await asyncio.gather(content.delete(),
                                             sendMessage(call,
-                                                        f'您只有 {e.iv}{sakura_b}，而您需要花费 {cost}，超前消费是不可取的哦！？',
+                                                        f'您只有 {e.iv}{config.money}，而您需要花费 {cost}，超前消费是不可取的哦！？',
                                                         timer=10),
                                             do_store(_, call))
             method = getattr(ExDate(), method)
@@ -699,11 +699,11 @@ async def do_store_invite(_, call):
             links = await cr_link_one(call.from_user.id, days, count, days, method)
             if links is None:
                 return await editMessage(call, '⚠️ 数据库插入失败，请检查数据库')
-            links = f"🎯 {bot_name}已为您生成了 **{days}天** 注册码 {count} 个\n\n" + links
+            links = f"🎯 {config.bot_name}已为您生成了 **{days}天** 注册码 {count} 个\n\n" + links
             chunks = [links[i:i + 4096] for i in range(0, len(links), 4096)]
             for chunk in chunks:
                 await sendMessage(content, chunk)
-            LOGGER.info(f"【注册码兑换】：{bot_name}已为 {content.from_user.id} 兑换了 {count} 个 {days} 天注册码")
+            LOGGER.info(f"【注册码兑换】：{config.bot_name}已为 {content.from_user.id} 兑换了 {count} 个 {days} 天注册码")
     else:
         await callAnswer(call, '❌ 管理员未开启此兑换', True)
 

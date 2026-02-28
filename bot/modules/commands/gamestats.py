@@ -70,7 +70,7 @@ async def handle_leaderboard_command(_, msg):
     import asyncio
     from bot.func_helper.fix_bottons import win_rate_button
     from bot.func_helper.msg_utils import sendPhoto
-    from bot import bot_photo
+    from bot import config
     
     sender = msg.from_user.id if not msg.sender_chat else msg.sender_chat.id
     
@@ -87,7 +87,7 @@ async def handle_leaderboard_command(_, msg):
         reply.delete(),
         sendPhoto(
             msg,
-            photo=bot_photo,
+            photo=config.bot_photo,
             caption=f"<b>▎🏆 胜率排行榜</b>\n\n{pages_text[0]}",
             buttons=button,
             parse_mode=ParseMode.HTML  # 使用 HTML 解析以确保链接生效

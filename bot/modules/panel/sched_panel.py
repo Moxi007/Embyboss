@@ -5,7 +5,7 @@ import aiohttp
 from pyrogram import filters
 from pyrogram.types import Message
 
-from bot import bot, sakura_b, schedall, save_config, prefixes, _open, owner, LOGGER, auto_update, group
+from bot import LOGGER, bot, config, prefixes, save_config
 from bot.func_helper.filters import admins_on_filter, user_in_group_on_filter
 from bot.func_helper.fix_bottons import sched_buttons, plays_list_button
 from bot.func_helper.msg_utils import callAnswer, editMessage, deleteMessage
@@ -55,7 +55,7 @@ args_dict = {
 
 def set_all_sche():
     for key, value in action_dict.items():
-        if getattr(schedall, key):
+        if getattr(config.schedall, key):
             action = action_dict[key]
             args = args_dict[key]
             scheduler.add_job(action, 'cron', **args)
@@ -78,11 +78,11 @@ async def sched_change_policy(_, call):
         # 根据method的值来添加或移除相应的任务
         action = action_dict[method]
         args = args_dict[method]
-        if getattr(schedall, method):
+        if getattr(config.schedall, method):
             scheduler.remove_job(job_id=args['id'], jobstore='default')
         else:
             scheduler.add_job(action, 'cron', **args)
-        setattr(schedall, method, not getattr(schedall, method))
+        setattr(config.schedall, method, not getattr(config.schedall, method))
         save_config()
         await asyncio.gather(callAnswer(call, f'⭕️ {method} 更改成功'), sched_panel(_, call.message))
     except IndexError:
@@ -105,7 +105,7 @@ async def check_ex_admin(_, msg):
 
 
 # bot数据库手动备份
-@bot.on_message(filters.command('backup_db', prefixes) & filters.user(owner))
+@bot.on_message(filters.command('backup_db', prefixes) & filters.user(config.owner))
 async def manual_backup_db(_, msg):
     await asyncio.gather(deleteMessage(msg), auto_backup_db())
 
@@ -142,8 +142,8 @@ async def shou_dong_uplayrank(_, msg):
         await user_plays_rank(days=days, uplays=False)
     except (IndexError, ValueError):
         await msg.reply(
-            f"🔔 请输入 `/uranks 天数`，此运行手动不会影响{sakura_b}的结算（仅定时运行时结算），放心使用。\n"
-            f"定时结算状态: {_open.uplays}")
+            f"🔔 请输入 `/uranks 天数`，此运行手动不会影响{config.money}的结算（仅定时运行时结算），放心使用。\n"
+            f"定时结算状态: {config.open.uplays}")
 @bot.on_message(filters.command('sync_favorites', prefixes) & admins_on_filter)
 async def sync_favorites_admin(_, msg):
     await deleteMessage(msg)
@@ -155,8 +155,8 @@ async def sync_favorites_admin(_, msg):
 async def restart_bot(_, msg):
     await deleteMessage(msg)
     send = await msg.reply("Restarting，等待几秒钟。")
-    schedall.restart_chat_id = send.chat.id
-    schedall.restart_msg_id = send.id
+    config.schedall.restart_chat_id = send.chat.id
+    config.schedall.restart_msg_id = send.id
     save_config()
     try:
         # some code here
@@ -212,15 +212,15 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
     此为未被测试的代码片段。
     """
     # print("update")
-    if not auto_update.status and not manual: return
-    branch = auto_update.git_branch or "beta"
-    commit_url = f"https://api.github.com/repos/{auto_update.git_repo}/commits?sha={branch}&per_page=1"
+    if not config.auto_update.status and not manual: return
+    branch = config.auto_update.git_branch or "beta"
+    commit_url = f"https://api.github.com/repos/{config.auto_update.git_repo}/commits?sha={branch}&per_page=1"
     async with aiohttp.ClientSession() as session:
         async with session.get(commit_url) as resp:
             if resp.status == 200:
                 data = await resp.json()
                 latest_commit = data[0]["sha"]
-                if latest_commit != auto_update.commit_sha:
+                if latest_commit != config.auto_update.commit_sha:
                     up_description = data[0]["commit"]["message"]
                     await execute("git fetch --all")
                     if force:  # 默认不重置，保留本地更改
@@ -230,23 +230,23 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
                     await execute(f"{executable} -m pip install  -r requirements.txt")
                     text = '【AutoUpdate_Bot】运行成功，已更新bot代码。重启bot中...'
                     if not msg:
-                        reply = await bot.send_message(chat_id=group[0], text=text)
-                        schedall.restart_chat_id = group[0]
-                        schedall.restart_msg_id = reply.id
+                        reply = await bot.send_message(chat_id=config.group[0], text=text)
+                        config.schedall.restart_chat_id = config.group[0]
+                        config.schedall.restart_msg_id = reply.id
                     else:
                         await msg.edit(text)
                     LOGGER.info(text)
-                    auto_update.commit_sha = latest_commit
-                    auto_update.up_description = up_description
+                    config.auto_update.commit_sha = latest_commit
+                    config.auto_update.up_description = up_description
                     save_config()
                     os.execl(executable, executable, *argv)
                 else:
                     message = "【AutoUpdate_Bot】运行成功，未检测到更新，结束"
-                    await bot.send_message(chat_id=group[0], text=message) if not msg else await msg.edit(message)
+                    await bot.send_message(chat_id=config.group[0], text=message) if not msg else await msg.edit(message)
                     LOGGER.info(message)
             else:
                 text = '【AutoUpdate_Bot】失败，请检查 git_repo 是否正确，形如 `berry8838/Sakura_embyboss`'
-                await bot.send_message(chat_id=group[0], text=text) if not msg else await msg.edit(text)
+                await bot.send_message(chat_id=config.group[0], text=text) if not msg else await msg.edit(text)
                 LOGGER.info(text)
 
 
@@ -258,7 +258,7 @@ async def get_update_bot(_, msg: Message):
     # results[1] 是发送消息的结果，从中提取 chat_id 和 message_id
     if len(results) == 2 and isinstance(results[1], Message):
         reply = results[1]
-        schedall.restart_chat_id = reply.chat.id
-        schedall.restart_msg_id = reply.id
+        config.schedall.restart_chat_id = reply.chat.id
+        config.schedall.restart_msg_id = reply.id
         save_config()
         await update_bot(msg=reply, manual=True)

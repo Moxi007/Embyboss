@@ -2,7 +2,7 @@
 bot_commands - 初始化设置命令
 """
 import asyncio
-from bot import owner, admins, group, LOGGER, user_p, admin_p, owner_p, bot
+from bot import LOGGER, admin_p, bot, config, owner_p, user_p
 from pyrogram.types import BotCommandScopeChatMember, BotCommandScopeChat, BotCommandScopeAllPrivateChats, \
     BotCommandScopeAllGroupChats
 
@@ -36,18 +36,18 @@ class BotCommands:
                 pass
 
             # 私聊
-            for admin_id in admins:
+            for admin_id in config.admins:
                 try:
                     await client.set_bot_commands(admin_p, scope=BotCommandScopeChat(chat_id=admin_id))
                 except:
                     pass
             try:
-                await client.set_bot_commands(owner_p, scope=BotCommandScopeChat(chat_id=owner))
+                await client.set_bot_commands(owner_p, scope=BotCommandScopeChat(chat_id=config.owner))
             except:
                 pass
             # 群组
-            for i in group:
-                for admin_id in admins:
+            for i in config.group:
+                for admin_id in config.admins:
                     try:
                         await client.set_bot_commands(admin_p,
                                                       scope=BotCommandScopeChatMember(chat_id=i, user_id=admin_id))
@@ -55,7 +55,7 @@ class BotCommands:
                         pass
                 try:
                     await client.set_bot_commands(owner_p,
-                                                  scope=BotCommandScopeChatMember(chat_id=i, user_id=owner))
+                                                  scope=BotCommandScopeChatMember(chat_id=i, user_id=config.owner))
                 except:
                     pass
             LOGGER.info("————初始化 命令显示 done————")
@@ -70,7 +70,7 @@ class BotCommands:
                 await client.set_bot_commands(admin_p, scope=BotCommandScopeChat(chat_id=uid))
             except:
                 pass
-            for i in group:
+            for i in config.group:
                 try:
                     await client.set_bot_commands(admin_p, scope=BotCommandScopeChatMember(chat_id=i, user_id=uid))
                 except:
@@ -86,7 +86,7 @@ class BotCommands:
                 await client.set_bot_commands(user_p, scope=BotCommandScopeChat(chat_id=uid))
             except:
                 pass
-            for i in group:
+            for i in config.group:
                 try:
                     await client.set_bot_commands(user_p, scope=BotCommandScopeChatMember(chat_id=i, user_id=uid))
                 except:

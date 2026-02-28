@@ -7,7 +7,7 @@ Date:2024/8/27
 """
 from fastapi import APIRouter
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
-from bot import LOGGER, group, bot
+from bot import LOGGER, bot, config
 from bot.func_helper.emby import emby
 
 route = APIRouter()
@@ -31,7 +31,7 @@ async def ban_playlist(eid: str):
         info = {"user_id": None, "embyid": None, "is_baned": False, "details": details}
         text = ("【新建播放列表拦截】\n\n"
                 f"{eid} - {info['details']}\n")
-        await bot.send_message(chat_id=group[0], text=text)
+        await bot.send_message(chat_id=config.group[0], text=text)
         LOGGER.info(text)
         return info
 
@@ -43,7 +43,7 @@ async def ban_playlist(eid: str):
                 f"Emby：{user.name}  |  ID：`{user.tg}`\n"
                 f'封禁原因：{info["details"]}')
         try:
-            out = await bot.send_message(group[0], text)
+            out = await bot.send_message(config.group[0], text)
             await out.forward(user.tg)
             await sql_update_emby(Emby.tg == info["user_id"], lv='c')
         except Exception as e:
@@ -57,7 +57,7 @@ async def ban_playlist(eid: str):
                 f"Emby：{user.name}  |  ID：`{user.tg}`\n"
                 f'封禁原因：{info["details"]}')
         try:
-            await bot.send_message(group[0], text)
+            await bot.send_message(config.group[0], text)
         except Exception as e:
             text += e
     LOGGER.info(text)

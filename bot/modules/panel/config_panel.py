@@ -4,7 +4,7 @@
 部分目前有 导出日志，更改探针，更改emby线路，设置购买按钮
 
 """
-from bot import bot, prefixes, bot_photo, Now, LOGGER, config, save_config, _open, auto_update, moviepilot, sakura_b
+from bot import LOGGER, Now, bot, config, prefixes, save_config
 from pyrogram import filters
 
 from bot.func_helper.filters import admins_on_filter
@@ -17,7 +17,7 @@ from bot.scheduler.sync_mp_download import sync_download_tasks
 @bot.on_message(filters.command('config', prefixes=prefixes) & admins_on_filter)
 async def config_p_set(_, msg):
     await deleteMessage(msg)
-    await sendPhoto(msg, photo=bot_photo, caption="🌸 欢迎回来！\n\n👇点击你要修改的内容。",
+    await sendPhoto(msg, photo=config.bot_photo, caption="🌸 欢迎回来！\n\n👇点击你要修改的内容。",
                     buttons=config_preparation())
 
 
@@ -312,8 +312,8 @@ async def set_block(_, call):
 async def set_auto_update(_, call):
     try:
         # 简化逻辑，只设置一次
-        auto_update.status = not auto_update.status
-        if auto_update.status:
+        config.auto_update.status = not config.auto_update.status
+        if config.auto_update.status:
             message = '👮🏻‍♂️您已开启 auto_update自动更新bot代码\n\n运行时间：12:30UTC+0800'
             LOGGER.info(f"【admin】：管理员 {call.from_user.first_name} 已启用 auto_update自动更新bot代码")
         else:
@@ -333,24 +333,24 @@ async def mp_config_panel(_, call):
     """MoviePilot 设置面板"""
     await callAnswer(call, '⚙️ MoviePilot 设置')
     lv_text = '无'
-    if moviepilot.lv == 'a':
+    if config.moviepilot.lv == 'a':
         lv_text = '白名单'
-    elif moviepilot.lv == 'b':
+    elif config.moviepilot.lv == 'b':
         lv_text = '普通用户'
     await editMessage(call, 
                      "⚙️ MoviePilot 设置面板\n\n"
-                     f"当前状态：{'已开启' if moviepilot.status else '已关闭'}\n"
-                     f"点播价格：{moviepilot.price} {sakura_b}/GB\n"
+                     f"当前状态：{'已开启' if config.moviepilot.status else '已关闭'}\n"
+                     f"点播价格：{config.moviepilot.price} {config.money}/GB\n"
                      f"用户权限：{lv_text}可使用\n"
-                     f"日志频道：{moviepilot.download_log_chatid or '未设置'}",
+                     f"日志频道：{config.moviepilot.download_log_chatid or '未设置'}",
                      buttons=mp_config_ikb())
 
 @bot.on_callback_query(filters.regex('^set_mp_status$') & admins_on_filter)
 async def set_mp_status(_, call):
     """设置点播功能开关"""
     try:
-        moviepilot.status = not moviepilot.status
-        if moviepilot.status:
+        config.moviepilot.status = not config.moviepilot.status
+        if config.moviepilot.status:
             message = '👮🏻‍♂️ 您已开启 MoviePilot 点播功能'
             scheduler.add_job(sync_download_tasks, 'interval', seconds=60, id='sync_download_tasks')
         else:
@@ -369,7 +369,7 @@ async def set_mp_price(_, call):
     await callAnswer(call, '💰 设置点播价格')
     await editMessage(call,
                      f"💰 设置点播价格\n\n"
-                     f"当前价格：{moviepilot.price} {sakura_b}/GB\n"
+                     f"当前价格：{config.moviepilot.price} {config.money}/GB\n"
                      f"请输入新的价格数值\n"
                      f"取消请点 /cancel")
     
@@ -381,9 +381,9 @@ async def set_mp_price(_, call):
         price = int(txt.text)
         if price < 0:
             raise ValueError
-        moviepilot.price = price
+        config.moviepilot.price = price
         save_config()
-        await editMessage(call, f"✅ 点播价格已设置为 {price} {sakura_b}/GB")
+        await editMessage(call, f"✅ 点播价格已设置为 {price} {config.money}/GB")
         await mp_config_panel(_, call)
     except ValueError:
         await editMessage(call, "❌ 请输入有效的数字")
@@ -392,8 +392,8 @@ async def set_mp_price(_, call):
 @bot.on_callback_query(filters.regex('set_mp_lv') & admins_on_filter)
 async def set_mp_lv(_, call):
     """设置用户权限"""
-    moviepilot.lv = 'a' if moviepilot.lv == 'b' else 'b'
-    message = '✅ 已设置为仅白名单用户可用' if moviepilot.lv == 'a' else '✅ 已设置为普通用户可用'
+    config.moviepilot.lv = 'a' if config.moviepilot.lv == 'b' else 'b'
+    message = '✅ 已设置为仅白名单用户可用' if config.moviepilot.lv == 'a' else '✅ 已设置为普通用户可用'
     await callAnswer(call, message, True)
     save_config()
     await mp_config_panel(_, call)
@@ -404,7 +404,7 @@ async def set_mp_log_channel(_, call):
     await callAnswer(call, '📝 设置日志频道')
     await editMessage(call,
                      f"📝 设置日志频道\n\n"
-                     f"当前频道：{moviepilot.download_log_chatid or '未设置'}\n"
+                     f"当前频道：{config.moviepilot.download_log_chatid or '未设置'}\n"
                      f"请输入频道 ID\n"
                      f"取消请点 /cancel")
     
@@ -414,7 +414,7 @@ async def set_mp_log_channel(_, call):
     
     try:
         chat_id = int(txt.text)
-        moviepilot.download_log_chatid = chat_id
+        config.moviepilot.download_log_chatid = chat_id
         save_config()
         await editMessage(call, f"✅ 日志频道已设置为 {chat_id}")
         await mp_config_panel(_, call)
@@ -426,9 +426,9 @@ async def set_mp_log_channel(_, call):
 @bot.on_callback_query(filters.regex('leave_ban') & admins_on_filter)
 async def open_leave_ban(_, call):
     # 切换状态
-    _open.leave_ban = not _open.leave_ban
+    config.open.leave_ban = not config.open.leave_ban
     # 根据当前状态发送消息
-    if _open.leave_ban:
+    if config.open.leave_ban:
         message = '**👮🏻‍♂️ 您已开启 退群封禁，用户退群bot将会被封印，禁止入群**'
         log_message = "【admin】：管理员 {} 已调整 退群封禁设置为 True".format(call.from_user.first_name)
     else:
@@ -443,8 +443,8 @@ async def open_leave_ban(_, call):
 
 @bot.on_callback_query(filters.regex('set_uplays') & admins_on_filter)
 async def set_user_playrank(_, call):
-    _open.uplays = not _open.uplays
-    if not _open.uplays:
+    config.open.uplays = not config.open.uplays
+    if not config.open.uplays:
         message = '👮🏻‍♂️ 您已关闭 观影榜结算，自动召唤观影榜将不被计算积分'
         log_message = f"【admin】：管理员 {call.from_user.first_name} 已关闭 观影榜结算"
     else:

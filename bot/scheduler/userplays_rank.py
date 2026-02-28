@@ -2,7 +2,7 @@ import math
 import cn2an
 from datetime import datetime, timezone, timedelta
 
-from bot import bot, bot_photo, group, sakura_b, LOGGER, ranks, _open 
+from bot import LOGGER, bot, config 
 from bot.func_helper.emby import emby
 from bot.func_helper.utils import convert_to_beijing_time, convert_s, cache, get_users, tem_deluser
 from bot.sql_helper import Session
@@ -53,7 +53,7 @@ class Uplaysinfo:
             for page_number in range(1, total_pages + 1):
                 start_index = (page_number - 1) * 10
                 end_index = start_index + 10
-                page_data = f'**▎🏆{ranks.logo} {days} 天观影榜**\n\n'
+                page_data = f'**▎🏆{config.ranks.logo} {days} 天观影榜**\n\n'
 
                 for rank, play_record in enumerate(play_list[start_index:end_index], start=start_index + 1):
                     medal = rank_medals[rank - 1] if rank < 4 else rank_medals[3]
@@ -86,23 +86,23 @@ class Uplaysinfo:
     async def user_plays_rank(days=7, uplays=True):
         a, n, ls = await Uplaysinfo.users_playback_list(days)
         if not a:
-            return await bot.send_photo(chat_id=group[0], photo=bot_photo,
+            return await bot.send_photo(chat_id=config.group[0], photo=config.bot_photo,
                                         caption=f'🍥 获取过去{days}天UserPlays失败了嘤嘤嘤 ~ 手动重试 ')
         play_button = await plays_list_button(n, 1, days)
-        send = await bot.send_photo(chat_id=group[0], photo=bot_photo, caption=a[0], reply_markup=play_button)
-        if uplays and _open.uplays:
+        send = await bot.send_photo(chat_id=config.group[0], photo=config.bot_photo, caption=a[0], reply_markup=play_button)
+        if uplays and config.open.uplays:
             if await sql_update_embys(some_list=ls, method='iv'):
-                text = f'**自动将观看时长转换为{sakura_b}**\n\n'
+                text = f'**自动将观看时长转换为{config.money}**\n\n'
                 for i in ls:
-                    text += f'[{i[2]}](tg://user?id={i[0]}) 获得了 {i[3]} {sakura_b}奖励\n'
+                    text += f'[{i[2]}](tg://user?id={i[0]}) 获得了 {i[3]} {config.money}奖励\n'
                 n = 4096
                 chunks = [text[i:i + n] for i in range(0, len(text), n)]
                 for c in chunks:
-                    await bot.send_message(chat_id=group[0],
+                    await bot.send_message(chat_id=config.group[0],
                                            text=c + f'\n⏱️ 当前时间 - {datetime.now().strftime("%Y-%m-%d")}')
                 LOGGER.info(f'【userplayrank】： ->成功 数据库执行批量操作{ls}')
             else:
-                await send.reply(f'**🎂！！！为用户增加{sakura_b}出错啦** @工程师看看吧~ ')
+                await send.reply(f'**🎂！！！为用户增加{config.money}出错啦** @工程师看看吧~ ')
                 LOGGER.error(f'【userplayrank】：-？失败 数据库执行批量操作{ls}')
 
     @staticmethod
@@ -110,7 +110,7 @@ class Uplaysinfo:
         now = datetime.now(timezone(timedelta(hours=8)))
         success, users = await emby.users()
         if not success:
-            return await bot.send_message(chat_id=group[0], text='⭕ 调用emby api失败')
+            return await bot.send_message(chat_id=config.group[0], text='⭕ 调用emby api失败')
         from bot import config
         activity_check_days = config.activity_check_days
         msg = f'正在执行**{activity_check_days}天活跃检测**...\n'
@@ -161,4 +161,4 @@ class Uplaysinfo:
         n = 1000
         chunks = [msg[i:i + n] for i in range(0, len(msg), n)]
         for c in chunks:
-            await bot.send_message(chat_id=group[0], text=c + f'**{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}**')
+            await bot.send_message(chat_id=config.group[0], text=c + f'**{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}**')
