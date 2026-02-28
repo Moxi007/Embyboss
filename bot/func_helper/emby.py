@@ -1428,7 +1428,7 @@ class Embyservice(metaclass=Singleton):
                         'year': item.get("ProductionYear", '缺失'),
                         'od': production_locations,
                         'genres': genres,
-                        'photo': f'{self.url}/emby/Items/{item.get("Id")}/Images/Primary?maxHeight=400&maxWidth=600&quality=90',
+                        'photo': f'{self.url}/emby/Items/{item.get("Id")}/Images/Primary?maxHeight=400&maxWidth=600&quality=90&api_key={self.api_key}',
                         'runtime': runtime,
                         'overview': item.get("Overview", "暂无更多信息"),
                         'taglines': '简介：' if not item.get("Taglines") else item.get("Taglines")[0],
