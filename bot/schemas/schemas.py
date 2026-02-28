@@ -116,6 +116,7 @@ class MP(BaseModel):
 class AutoUpdate(BaseModel):
     status: bool = True
     git_repo: Optional[str] = "cuteys/Sakura_embyboss"  # github仓库名/魔改的请填自己的仓库
+    git_branch: Optional[str] = "beta"  # 可选：默认拉取的分支名
     commit_sha: Optional[str] = None  # 最近一次commit
     up_description: Optional[str] = None  # 更新描述
 

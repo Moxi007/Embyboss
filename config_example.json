@@ -99,6 +99,7 @@
   "auto_update": {
     "status": true,
     "git_repo": "cuteys/Sakura_embyboss",
+    "git_branch": "main",
     "commit_sha": null
   },
   "api": {
