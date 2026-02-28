@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.env
+.pytest_cache/
+image/
+tests/
+ migrate_awaits.py
+test_imports.py
