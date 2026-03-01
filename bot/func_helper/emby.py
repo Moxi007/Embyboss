@@ -754,12 +754,18 @@ class Embyservice(metaclass=Singleton):
 
     async def users(self) -> Tuple[bool, Union[List[Dict], Dict[str, str]]]:
         """
-        获取所有用户列表
+        获取所有用户列表，包含隐藏用户
         :return: (是否成功, 用户列表或错误信息)
         """
         try:
-            result = await self._request('GET', '/emby/Users')
-            if result.success:
+            # 使用 Query 端点以支持拉取全量（包括 Hidden=true 的被隐藏用户）
+            result = await self._request('GET', '/emby/Users/Query')
+            if result.success and isinstance(result.data, dict):
+                items = result.data.get("Items", [])
+                LOGGER.debug(f"获取用户列表成功，共 {len(items)} 个用户")
+                return True, items
+            elif result.success and isinstance(result.data, list):
+                # 兼容部分直接返回数组的情况
                 LOGGER.debug(f"获取用户列表成功，共 {len(result.data)} 个用户")
                 return True, result.data
             else:
