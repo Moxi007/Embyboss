@@ -560,6 +560,37 @@ async def set_activity_check_days(_, call):
                               buttons=back_config_p_ikb)
             LOGGER.info(f"【admin】：{call.from_user.id} - 更新活跃检测天数为{days}天完成")
 
+@bot.on_callback_query(filters.regex('set_low_activity_watch_hours') & admins_on_filter)
+async def set_low_activity_watch_hours(_, call):
+    await callAnswer(call, '📌 设置活跃所需观看时长')
+    send = await editMessage(call,
+                             f"⏳【设置活跃检测所需近30天内最低观看时长】\n\n请输入一个数字（小时），输入 0 即关闭时长限制。\n取消点击 /cancel\n\n当前设置: {config.schedall.low_activity_watch_hours} 小时")
+    if send is False:
+        return
+    txt = await callListen(call, 120, back_set_ikb('set_low_activity_watch_hours'))
+    if txt is False:
+        return
+
+    elif txt.text == '/cancel':
+        await txt.delete()
+        await editMessage(call, '__您已经取消输入__ **会话已结束！**', buttons=back_set_ikb('set_low_activity_watch_hours'))
+    else:
+        await txt.delete()
+        try:
+            hours = int(txt.text)
+            if hours < 0:
+                raise ValueError("小时数必须大于等于0")
+        except ValueError:
+            await editMessage(call, f"请注意格式! 请输入大于等于0的整数。您的输入如下: \n\n`{txt.text}`",
+                              buttons=back_set_ikb('set_low_activity_watch_hours'))
+        else:
+            config.schedall.low_activity_watch_hours = hours
+            save_config()
+            await editMessage(call,
+                              f"⏳ 【活跃最低观看时长】\n\n设置为: {hours} 小时 **Done!**",
+                              buttons=back_config_p_ikb)
+            LOGGER.info(f"【admin】：{call.from_user.id} - 更新活跃检测观看时长下限为{hours}小时完成")
+
 @bot.on_callback_query(filters.regex('^set_game_config$') & admins_on_filter)
 async def game_config_panel(_, call):
     """游戏设置面板"""

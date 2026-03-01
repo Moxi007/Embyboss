@@ -79,6 +79,7 @@ class Schedall(BaseModel):
     weekplayrank: bool = True
     check_ex: bool = True
     low_activity: bool = False
+    low_activity_watch_hours: int = 1
     day_ranks_message_id: int = 0
     week_ranks_message_id: int = 0
     restart_chat_id: int = 0

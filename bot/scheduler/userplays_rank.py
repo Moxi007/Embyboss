@@ -140,7 +140,7 @@ class Uplaysinfo:
                 try:
                     ac_date = convert_to_beijing_time(user["LastActivityDate"])
                     
-                    # print(e.name, ac_date, now)
+                    # 1. 检测长期未登录（原逻辑）
                     if ac_date + timedelta(days=activity_check_days) < now:
                         if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
                             await sql_update_emby(Emby.embyid == user["Id"], lv='c')
@@ -149,7 +149,32 @@ class Uplaysinfo:
                         else:
                             msg += f"**🎂活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n{activity_check_days}天未活跃，禁用失败啦！检查emby连通性\n\n"
                             LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：禁用失败啦！检查emby连通性")
+                        continue  # 已经被第一项规则禁用，跳过时长检测
+                    
+                    # 2. 检测近 30 天内观看时长是否达标 (新逻辑)
+                    watch_threshold_hours = config.schedall.low_activity_watch_hours
+                    if watch_threshold_hours > 0:
+                        # 使用 Emby 查询过去 30 天的时长数据
+                        play_stats = await emby.emby_cust_commit(emby_id=user["Id"], days=30)
+                        
+                        # 返回的 play_stats 预期为只包含一行的列表，例如 [{"LastLogin": "...", "WatchTime": 120}]，WatchTime单位为分钟
+                        watch_time_mins = 0
+                        if play_stats and len(play_stats) > 0 and play_stats[0].get("WatchTime"):
+                            watch_time_mins = int(play_stats[0].get("WatchTime", 0))
+                        
+                        watch_time_hours = watch_time_mins / 60
+                        if watch_time_hours < watch_threshold_hours:
+                            if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
+                                await sql_update_emby(Emby.embyid == user["Id"], lv='c')
+                                msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 过去30天观看时长不足{watch_threshold_hours}小时(当前{watch_time_hours:.1f}时)，禁用\n\n"
+                                LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：30天内播放时长不足")
+                            else:
+                                msg += f"**🎂活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n由于播放时长不足禁用失败啦！检查emby连通性\n\n"
+                                LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：由于播放时长不足禁用失败")
+                            continue
+                            
                 except KeyError:
+                    # 注册后未曾有过任何活动
                     if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
                         await sql_update_emby(Emby.embyid == user["Id"], lv='c')
                         msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 注册后未活跃，禁用\n\n"
