@@ -108,7 +108,7 @@ class Uplaysinfo:
                 LOGGER.error(f'【userplayrank】：-？失败 数据库执行批量操作{ls}')
 
     @staticmethod
-    async def check_low_activity():
+    async def check_low_activity(watch_threshold_hours: int = None):
         now = datetime.now(timezone(timedelta(hours=8)))
         success, users = await emby.users()
         if not success:
@@ -154,7 +154,8 @@ class Uplaysinfo:
                         continue  # 已经被第一项规则禁用，跳过时长检测
                     
                     # 2. 检测近 30 天内观看时长是否达标 (新逻辑)
-                    watch_threshold_hours = config.schedall.low_activity_watch_hours
+                    if watch_threshold_hours is None:
+                        watch_threshold_hours = config.schedall.low_activity_watch_hours
                     if watch_threshold_hours > 0:
                         # 增加判断：注册是否已满 30 天
                         try:
