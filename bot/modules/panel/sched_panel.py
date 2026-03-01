@@ -232,10 +232,9 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
                     up_description = data[0]["commit"]["message"]
                     await execute("git fetch --all")
                     
-                    # 无论是定时还是强制，热更新都应当尽可能覆盖以防本地冲突中断更新
-                    if force or True:  
-                        await execute(f"git reset --hard origin/{branch}")
-                        
+                    # 强制切换分支并硬重置，防止冲突
+                    await execute(f"git checkout {branch}")
+                    await execute(f"git reset --hard origin/{branch}")
                     await execute(f"git pull origin {branch}")
                     
                     # 清除 Python 字节码缓存和未跟踪的文件，确保重启后加载全新纯净的代码

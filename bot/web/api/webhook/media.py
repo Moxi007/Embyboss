@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request
 from bot.sql_helper.sql_emby import Emby
 from bot.sql_helper.sql_favorites import EmbyFavorites
 from bot.sql_helper import Session
+from sqlalchemy import select
 from bot.func_helper.emby import emby
 from bot import LOGGER, bot
 import json
@@ -32,15 +33,16 @@ async def check_and_notify_series_update(item_data: dict):
         if not series_id:
             return
             
-        session = Session()
-        try:
+        async with Session() as session:
             # 查找收藏了这个剧集的用户
-            favorites = session.query(EmbyFavorites, Emby).join(
+            stmt = select(EmbyFavorites, Emby).join(
                 Emby, EmbyFavorites.embyid == Emby.embyid
             ).filter(
                 EmbyFavorites.item_id == series_id,
                 Emby.tg.isnot(None)
-            ).all()
+            )
+            result_db = await session.execute(stmt)
+            favorites = result_db.all()
             
             if favorites:
                 message = (
@@ -54,8 +56,6 @@ async def check_and_notify_series_update(item_data: dict):
                 for favorite, user in favorites:
                     await send_update_notification_to_user(user.tg, message)
                     LOGGER.info(f"已发送剧集更新通知给用户 {user.tg}: {series_name} - {episode_number}")
-        finally:
-            session.close()
             
     except Exception as e:
         LOGGER.error(f"处理剧集更新通知失败: {str(e)}")
@@ -72,8 +72,7 @@ async def check_and_notify_person_update(item_data: dict):
         success, people_list = await emby.item_id_people(item_id=item_id)
         if not success:
             return
-        session = Session()
-        try:
+        async with Session() as session:
             for person in people_list:
                 person_id = person.get("Id")
                 person_name = person.get("Name")
@@ -82,12 +81,14 @@ async def check_and_notify_person_update(item_data: dict):
                     continue
                     
                 # 查找收藏了这个演员的用户
-                favorites = session.query(EmbyFavorites, Emby).join(
+                stmt = select(EmbyFavorites, Emby).join(
                     Emby, EmbyFavorites.embyid == Emby.embyid
                 ).filter(
                     EmbyFavorites.item_id == person_id,
                     Emby.tg.isnot(None)
-                ).all()
+                )
+                result_db = await session.execute(stmt)
+                favorites = result_db.all()
                 
                 if favorites:
                     # 获取作品信息
@@ -105,8 +106,6 @@ async def check_and_notify_person_update(item_data: dict):
                     for favorite, user in favorites:
                         await send_update_notification_to_user(user.tg, message)
                         LOGGER.info(f"已发送演员新作品通知给用户 {user.tg}: {person_name} - {item_name}")
-        finally:
-            session.close()
             
     except Exception as e:
         LOGGER.error(f"处理演员更新通知失败: {str(e)}")

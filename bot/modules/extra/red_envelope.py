@@ -12,7 +12,7 @@ import math
 from datetime import datetime, timedelta
 from pyrogram import filters
 from pyrogram.types import ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from bot import bot, config, prefixes
 from bot.func_helper.filters import user_in_group_on_filter
@@ -430,9 +430,10 @@ async def s_rank(_, msg):
 
 @cache.memoize(ttl=120)
 async def users_iv_rank():
-    with Session() as session:
+    async with Session() as session:
         # 查询 Emby 表的所有数据，且>0 的条数
-        p = session.query(func.count()).filter(Emby.iv > 0).scalar()
+        count_db = await session.execute(select(func.count()).select_from(Emby).filter(Emby.iv > 0))
+        p = count_db.scalar()
         if p == 0:
             return None, 1
         # 创建一个空字典来存储用户的 first_name 和 id
@@ -445,14 +446,10 @@ async def users_iv_rank():
         while b <= i:
             d = (b - 1) * 10
             # 查询iv排序，分页查询
-            result = (
-                session.query(Emby)
-                .filter(Emby.iv > 0)
-                .order_by(Emby.iv.desc())
-                .limit(10)
-                .offset(d)
-                .all()
-            )
+            stmt = select(Emby).filter(Emby.iv > 0).order_by(Emby.iv.desc()).limit(10).offset(d)
+            result_db = await session.execute(stmt)
+            result = result_db.scalars().all()
+            
             e = 1 if d == 0 else d + 1
             text = ""
             for q in result:

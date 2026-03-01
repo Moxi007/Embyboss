@@ -6,6 +6,7 @@ from bot import LOGGER, bot, config
 from bot.func_helper.emby import emby
 from bot.func_helper.utils import convert_to_beijing_time, convert_s, cache, get_users, tem_deluser
 from bot.sql_helper import Session
+from sqlalchemy import select
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_embys, Emby, sql_update_emby
 from bot.func_helper.fix_bottons import plays_list_button
 
@@ -25,9 +26,10 @@ class Uplaysinfo:
         if play_list is None:
             return None, 1, 1
 
-        with Session() as session:
+        async with Session() as session:
             # 更高效地查询 Emby 表的数据
-            result = session.query(Emby).filter(Emby.name.isnot(None)).all()
+            result_db = await session.execute(select(Emby).filter(Emby.name.isnot(None)))
+            result = result_db.scalars().all()
 
             if not result:
                 return None, 1

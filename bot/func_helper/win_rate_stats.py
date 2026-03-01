@@ -4,6 +4,7 @@
 """
 from typing import List, Dict, Optional
 from bot.sql_helper.sql_emby import sql_get_emby, Session, Emby
+from sqlalchemy import select, update, func
 from bot import LOGGER
 
 
@@ -28,7 +29,7 @@ class WinRateStatsManager:
             LOGGER.warning("update_game_stats: 玩家结果列表为空")
             return True
         
-        with Session() as session:
+        async with Session() as session:
             try:
                 # 构建批量更新数据
                 mappings = []
@@ -42,7 +43,8 @@ class WinRateStatsManager:
                         continue
                     
                     # 查询当前用户数据
-                    user = session.query(Emby).filter(Emby.tg == user_id).first()
+                    result_db = await session.execute(select(Emby).filter(Emby.tg == user_id))
+                    user = result_db.scalars().first()
                     if not user:
                         LOGGER.warning(f"update_game_stats: 用户不存在: {user_id}")
                         continue
@@ -57,7 +59,7 @@ class WinRateStatsManager:
                             f"数据不一致: user_id={user_id}, "
                             f"new_won={new_won} > new_played={new_played}"
                         )
-                        session.rollback()
+                        await session.rollback()
                         return False
                     
                     mappings.append({
@@ -71,8 +73,8 @@ class WinRateStatsManager:
                     return True
                 
                 # 批量更新
-                session.bulk_update_mappings(Emby, mappings)
-                session.commit()
+                await session.execute(update(Emby), mappings)
+                await session.commit()
                 
                 LOGGER.info(
                     f"成功更新游戏统计: {len(mappings)} 个玩家, "
@@ -85,7 +87,7 @@ class WinRateStatsManager:
                     f"更新游戏统计失败: {e}, "
                     f"玩家: {[p.get('user_id') for p in player_results]}"
                 )
-                session.rollback()
+                await session.rollback()
                 return False
     
     @staticmethod
@@ -197,9 +199,10 @@ class WinRateStatsManager:
         # 获取 Telegram 用户名字典（异步场景）
         members_dict = await get_users()
         
-        with Session() as session:
+        async with Session() as session:
             # 查询至少参与过 1 局游戏的玩家总数
-            total_count = session.query(Emby).filter(Emby.game_played >= 1).count()
+            count_result = await session.execute(select(func.count()).select_from(Emby).filter(Emby.game_played >= 1))
+            total_count = count_result.scalar()
             
             if total_count == 0:
                 return None, 1
@@ -210,9 +213,8 @@ class WinRateStatsManager:
             medals = ["🥇", "🥈", "🥉", "🏅"]
             
             # 查询所有玩家（按胜率排序）
-            users = session.query(Emby).filter(
-                Emby.game_played >= 1
-            ).all()
+            users_db = await session.execute(select(Emby).filter(Emby.game_played >= 1))
+            users = users_db.scalars().all()
             
             # 计算胜率并排序
             users_with_rate = []

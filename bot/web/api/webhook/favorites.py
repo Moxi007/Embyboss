@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request
 from bot.sql_helper.sql_favorites import sql_add_favorites
 from bot.sql_helper.sql_emby import Emby
 from bot.sql_helper import Session
+from sqlalchemy import select
 from bot import LOGGER, bot
 import json
 
@@ -84,11 +85,9 @@ async def handle_favorite_webhook(request: Request):
             LOGGER.info(f"用户 {embyname} {action}了项目 {item_name}")
             
             # 创建新的session来查询用户
-            session = Session()
-            try:
-                user = session.query(Emby).filter(
-                    Emby.name == embyname
-                ).first()
+            async with Session() as session:
+                result_db = await session.execute(select(Emby).filter(Emby.name == embyname))
+                user = result_db.scalars().first()
                 
                 if user and user.tg:
                     # 发送Telegram通知
@@ -98,8 +97,6 @@ async def handle_favorite_webhook(request: Request):
                         item_name=item_name,
                         is_favorite=is_favorite
                     )
-            finally:
-                session.close()  # 确保session被关闭
         else:
             LOGGER.error(f"操作收藏记录失败")
             
