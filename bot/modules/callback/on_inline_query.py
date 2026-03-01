@@ -10,7 +10,7 @@ from pyrogram import filters
 from bot import bot, config
 from bot.func_helper.filters import user_in_group_on_filter
 from pyrogram.types import (InlineQueryResultArticle, InputTextMessageContent,
-                            InlineKeyboardMarkup, InlineKeyboardButton, InlineQuery, ChosenInlineResult)
+                            InlineKeyboardMarkup, InlineKeyboardButton, InlineQuery, ChosenInlineResult, LinkPreviewOptions)
 from bot.func_helper.emby import emby
 from bot.sql_helper.sql_emby import sql_get_emby
 from pyrogram.errors import BadRequest
@@ -80,7 +80,7 @@ async def find_sth_media(_, inline_query: InlineQuery):
                             # f"·**发行商:** {i['studios']}\n"
                             f"**🧬加入日期** | {i['add']}\n\n"
                             f"**{i['taglines']}**\n"
-                            f"{i['overview']}", disable_web_page_preview=False),
+                            f"{i['overview']}", link_preview_options=LinkPreviewOptions(is_disabled=False)),
                         reply_markup=InlineKeyboardMarkup(
                             [[InlineKeyboardButton(text=f'🍿 TMDB',
                                                    url=f'https://www.themoviedb.org/{typer[0]}/{i["tmdbid"]}'),

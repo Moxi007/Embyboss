@@ -9,6 +9,7 @@ from pyrogram import filters, enums
 from pyrogram.errors import FloodWait, Forbidden, BadRequest
 from pyrogram.types import CallbackQuery
 from pyromod.exceptions import ListenerTimeout
+from pyrogram.types import LinkPreviewOptions
 from bot import LOGGER, bot, config
 from typing import Optional
 
@@ -33,7 +34,7 @@ async def sendMessage(message, text: str, buttons=None, timer=None, send=False, 
                 chat_id = config.group[0]
             return await bot.send_message(chat_id=chat_id, text=text, reply_markup=buttons, parse_mode=parse_mode)
         # 禁用通知 disable_notification=True,
-        send = await message.reply(text=text, quote=True, disable_web_page_preview=True, reply_markup=buttons)
+        send = await message.reply(text=text, link_preview_options=LinkPreviewOptions(is_disabled=True), reply_markup=buttons)
         if timer is not None:
             return await deleteMessage(send, timer)
         return True
@@ -57,7 +58,7 @@ async def editMessage(message, text: str, buttons=None, timer=None, parse_mode: 
     if isinstance(message, CallbackQuery):
         message = message.message
     try:
-        edt = await message.edit(text=text, disable_web_page_preview=True, reply_markup=buttons, parse_mode=parse_mode)
+        edt = await message.edit(text=text, link_preview_options=LinkPreviewOptions(is_disabled=True), reply_markup=buttons, parse_mode=parse_mode)
         if timer is not None:
             return await deleteMessage(edt, timer)
         return True
@@ -94,7 +95,7 @@ async def sendFile(message, file, file_name, caption=None, buttons=None):
     if isinstance(message, CallbackQuery):
         message = message.message
     try:
-        await message.reply_document(document=file, file_name=file_name, quote=False, caption=caption,
+        await message.reply_document(document=file, file_name=file_name, caption=caption,
                                      reply_markup=buttons)
         return True
     except FloodWait as f:
@@ -125,7 +126,6 @@ async def sendPhoto(message, photo, caption=None, buttons=None, timer=None, send
             if chat_id is None:
                 chat_id = config.group[0]
             return await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption, reply_markup=buttons, parse_mode=parse_mode)
-        # quote=True 引用回复
         send = await message.reply_photo(photo=photo, caption=caption, disable_notification=True,
                                          reply_markup=buttons, parse_mode=parse_mode)
         if timer is not None:

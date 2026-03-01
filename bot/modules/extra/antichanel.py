@@ -59,7 +59,7 @@ async def remove_pitao(_, msg):
 
 
 custom_message_filter = filters.create(
-    lambda _, __, message: False if message.forward_from_chat or message.from_user or not config.fuxx_pitao else True)
+    lambda _, __, message: False if getattr(message, 'forward_origin', None) or message.from_user or not config.fuxx_pitao else True)
 custom_chat_filter = filters.create(
     lambda _, __,
            message: True if message.sender_chat.id != message.chat.id and message.sender_chat.id not in config.w_anti_channel_ids else False)

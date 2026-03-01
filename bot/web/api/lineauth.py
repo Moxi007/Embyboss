@@ -33,7 +33,7 @@ async def send_log_message(message_text: str):
         "chat_id": TG_LOG_CHAT_ID,
         "text": message_text,
         "parse_mode": "Markdown",
-        "disable_web_page_preview": True
+        "link_preview_options": {"is_disabled": True}
     }
     if TG_LOGIN_THREAD_ID:
         payload["message_thread_id"] = TG_LOGIN_THREAD_ID
