@@ -99,4 +99,6 @@ check = Web()
 
 # 初始化
 loop = asyncio.get_event_loop()
+from bot.sql_helper import init_db
+loop.create_task(init_db())
 loop.create_task(check.start())
