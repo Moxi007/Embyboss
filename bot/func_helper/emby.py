@@ -106,6 +106,8 @@ class Embyservice(metaclass=Singleton):
         
         # 限制 Emby 账户创建并发数，保护 SQLite 数据库
         self._create_semaphore = asyncio.Semaphore(1)
+        # 限制 Emby 账户操作保护，避免批量删除锁表
+        self._write_semaphore = asyncio.Semaphore(3)
 
     @property
     def url(self):
@@ -181,6 +183,10 @@ class Embyservice(metaclass=Singleton):
                     async with session.request(method, url, headers=final_headers, **kwargs) as response:
                         # 检查HTTP状态码
                         if response.status in [200, 204]:
+                            if response.status == 204:
+                                LOGGER.debug(f"API请求成功(无内容): {method} {endpoint}")
+                                return EmbyApiResult(True)
+                                
                             # 处理不同的响应类型
                             if response.content_type == 'application/json':
                                 try:
@@ -191,7 +197,7 @@ class Embyservice(metaclass=Singleton):
                                     LOGGER.error(f"JSON解析失败: {str(e)}")
                                     return EmbyApiResult(False, error=f"JSON解析失败: {str(e)}")
                             else:
-                                # 处理二进制内容（如图片）
+                                # 处理二进制内容（如图片）或纯文本
                                 content = await response.read()
                                 return EmbyApiResult(True, content)
                         
@@ -294,21 +300,24 @@ class Embyservice(metaclass=Singleton):
     async def emby_del(self, emby_id: str) -> bool:
         """
         删除 Emby 账户
-        :param user_id: 用户ID
+        :param emby_id: 用户ID
         :return: 是否成功
         """
-        try:
-            LOGGER.info(f"开始删除用户: {emby_id}")
-            result = await self._request('DELETE', f'/emby/Users/{emby_id}')
-            if result.success:
-                LOGGER.info(f"成功删除用户: {emby_id}")
-                return True
-            else:
-                LOGGER.error(f"删除用户失败: {emby_id} - {result.error}")
+        async with self._write_semaphore:
+            # 延时以防批量删除高并发将 SQLite 锁死
+            await asyncio.sleep(0.3)
+            try:
+                LOGGER.info(f"开始删除用户: {emby_id}")
+                result = await self._request('DELETE', f'/emby/Users/{emby_id}')
+                if result.success:
+                    LOGGER.info(f"成功删除用户: {emby_id}")
+                    return True
+                else:
+                    LOGGER.error(f"删除用户失败: {emby_id} - {result.error}")
+                    return False
+            except Exception as e:
+                LOGGER.error(f"删除用户异常: {emby_id} - {str(e)}")
                 return False
-        except Exception as e:
-            LOGGER.error(f"删除用户异常: {emby_id} - {str(e)}")
-            return False
 
     async def emby_reset(self, emby_id: str, new_password: str = None) -> bool:
         """
