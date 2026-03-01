@@ -143,6 +143,21 @@ async def run_low_ac(_, msg):
     else:
         await msg.reply("🔔 请输入 `/low_activity true` 确认运行")
 
+@bot.on_message(filters.command('set_watch_hours', prefixes) & admins_on_filter)
+async def set_watch_h(_, msg):
+    await deleteMessage(msg)
+    try:
+        hours = int(msg.command[1])
+        if hours < 0:
+            raise ValueError
+        config.schedall.low_activity_watch_hours = hours
+        save_config()
+        await sendMessage(msg, f"✅ 已成功将**活跃检测近30天所需观看时长**手动设置为: `{hours}` 小时。\n（输入 0 代表关闭此限制）", send=True)
+        from bot import LOGGER
+        LOGGER.info(f"【admin】：{msg.from_user.id} - 手动命令更新活跃检测观看时长下限为{hours}小时完成")
+    except (IndexError, ValueError):
+        await sendMessage(msg, "❌ 格式错误！请输入类似于：\n`/set_watch_hours 1` (代表设置为1小时)", send=True)
+
 @bot.on_message(filters.command('uranks', prefixes) & admins_on_filter)
 async def shou_dong_uplayrank(_, msg):
     await deleteMessage(msg)
