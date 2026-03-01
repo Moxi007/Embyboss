@@ -154,6 +154,14 @@ class Uplaysinfo:
                     # 2. 检测近 30 天内观看时长是否达标 (新逻辑)
                     watch_threshold_hours = config.schedall.low_activity_watch_hours
                     if watch_threshold_hours > 0:
+                        # 增加判断：注册是否已满 30 天
+                        try:
+                            created_date = convert_to_beijing_time(user["DateCreated"])
+                            if created_date + timedelta(days=30) > now:
+                                continue  # 注册未满 30 天，跳过此时长检测，给新人缓冲期
+                        except KeyError:
+                            pass # 拿不到创建时间就暂时放开或按老方式继续往下查
+
                         # 使用 Emby 查询过去 30 天的时长数据
                         play_stats = await emby.emby_cust_commit(emby_id=user["Id"], days=30)
                         

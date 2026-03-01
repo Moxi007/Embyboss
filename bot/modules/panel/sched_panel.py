@@ -168,8 +168,10 @@ async def restart_bot(_, msg):
     config.schedall.restart_msg_id = send.id
     save_config()
     LOGGER.info("手动重启")
-    import sys
-    sys.exit(1)
+    import os, sys
+    # 确保在项目根目录启动
+    os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    os.execv(sys.executable, [sys.executable, 'main.py'])
 
 
 @bot.on_callback_query(filters.regex('uranks') & user_in_group_on_filter)
@@ -229,12 +231,20 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
                 if latest_commit != config.auto_update.commit_sha:
                     up_description = data[0]["commit"]["message"]
                     await execute("git fetch --all")
-                    if force:  # 默认不重置，保留本地更改
+                    
+                    # 无论是定时还是强制，热更新都应当尽可能覆盖以防本地冲突中断更新
+                    if force or True:  
                         await execute(f"git reset --hard origin/{branch}")
+                        
                     await execute(f"git pull origin {branch}")
-                    # await execute(f"{executable} -m pip install --upgrade -r requirements.txt")
-                    await execute(f"{executable} -m pip install  -r requirements.txt")
-                    text = '【AutoUpdate_Bot】运行成功，已更新bot代码。重启bot中...'
+                    
+                    # 清除 Python 字节码缓存和未跟踪的文件，确保重启后加载全新纯净的代码
+                    await execute("git clean -fd") 
+                    await execute("find . -name '*.pyc' -delete")
+                    await execute("find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true")
+                    
+                    await execute(f"{executable} -m pip install -r requirements.txt")
+                    text = '【AutoUpdate_Bot】运行成功，已拉取并更新 bot 代码。正在执行热重启...'
                     if not msg:
                         reply = await bot.send_message(chat_id=config.group[0], text=text)
                         config.schedall.restart_chat_id = config.group[0]
@@ -246,15 +256,12 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
                     config.auto_update.up_description = up_description
                     save_config()
                     
-                    # 清除 Python 字节码缓存，确保重启后加载新代码
-                    await execute("find /app -type f -name '*.pyc' -delete")
-                    await execute("find /app -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true")
-                    
-                    # 直接退出进程，由 Docker/start.sh 负责完整拉起
-                    # 不使用 os.execl，因为它会继承 Python 的模块缓存导致新代码不生效
-                    import sys
-                    LOGGER.info("更新完成，正在退出进程以触发 Docker 重启...")
-                    sys.exit(1)
+                    # 使用 os.execv 携带当前环境让当前解释器重新执行 main.py
+                    import os, sys
+                    LOGGER.info("更新操作完成，正在进行 os.execv 重启...")
+                    # 确保在项目根目录启动
+                    os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+                    os.execv(sys.executable, [sys.executable, 'main.py'])
                 else:
                     message = "【AutoUpdate_Bot】运行成功，未检测到更新，结束"
                     await bot.send_message(chat_id=config.group[0], text=message) if not msg else await msg.edit(message)
