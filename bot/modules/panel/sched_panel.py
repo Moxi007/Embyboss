@@ -133,16 +133,25 @@ async def week_r_ranks(_, msg):
 async def run_low_ac(_, msg):
     await deleteMessage(msg)
     hours = None
+    confirm = False
     try:
         if len(msg.command) > 1:
-            hours = int(msg.command[1])
-            if hours < 0:
-                raise ValueError
+            arg1 = msg.command[1].lower()
+            if arg1 == 'true':
+                confirm = True
+            else:
+                hours = int(arg1)
+                if hours < 0:
+                    raise ValueError
+        if len(msg.command) > 2:
+            arg2 = msg.command[2].lower()
+            if arg2 == 'true':
+                confirm = True
     except:
-        return await msg.reply("🔔 请输入 `/low_activity` (使用默认配置) 或 `/low_activity [小时数]` (指定阈值)")
+        return await msg.reply("🔔 请输入 `/low_activity` (仅扫描) 或 `/low_activity [小时数]` (仅扫描) 或附加 `true` 确认清理 (例如 `/low_activity true` 或 `/low_activity 2 true`)")
 
-    send = await msg.reply(f"⭕ 不活跃检测运行ing··· (指定阈值: {hours if hours is not None else '默认配置'} 小时)")
-    await asyncio.gather(check_low_activity(hours), send.delete())
+    send = await msg.reply(f"⭕ 不活跃检测运行ing··· (指定阈值: {hours if hours is not None else '默认配置'} 小时, {'执行清理' if confirm else '仅扫描'})")
+    await asyncio.gather(check_low_activity(hours, confirm=confirm), send.delete())
 
 @bot.on_message(filters.command('uranks', prefixes) & admins_on_filter)
 async def shou_dong_uplayrank(_, msg):
