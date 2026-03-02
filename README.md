@@ -1,4 +1,4 @@
-# 🌸 Sakura_embyboss 炊烟修改版
+# Embyboss
 
 <p align="center">
 <img src="image/bot2.png" alt="bot"><br>
