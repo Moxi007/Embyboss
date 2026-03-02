@@ -115,6 +115,8 @@ class Uplaysinfo:
             return await bot.send_message(chat_id=config.group[0], text='⭕ 调用emby api失败')
         from bot import config
         activity_check_days = config.activity_check_days
+        deleted_count = 0
+        disabled_count = 0
         msg = f'正在执行**{activity_check_days}天活跃检测**({"执行清理" if confirm else "🔍仅扫描"})...\n'
         for user in users:
             # 数据库先找
@@ -134,12 +136,14 @@ class Uplaysinfo:
                                 await sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d',
                                                 cr=None, ex=None)
                                 tem_deluser()
+                                deleted_count += 1
                                 msg += f'**🔋活跃检测** - [{e.name}](tg://user?id={e.tg})\n#id{e.tg} 禁用后未解禁，已执行删除。\n\n'
                                 LOGGER.info(f"【活跃检测】- 删除账户 {user['Name']} #id{e.tg}")
                             else:
                                 msg += f'**🔋活跃检测** - [{e.name}](tg://user?id={e.tg})\n#id{e.tg} 禁用后未解禁，执行删除失败。\n\n'
                                 LOGGER.info(f"【活跃检测】- 删除账户失败 {user['Name']} #id{e.tg}")
                         else:
+                            deleted_count += 1
                             msg += f'**🔍扫描待处理** - [{e.name}](tg://user?id={e.tg})\n#id{e.tg} 禁用后未解禁15天，待删除。\n\n'
             elif e.lv == 'b':
                 try:
@@ -150,12 +154,14 @@ class Uplaysinfo:
                         if confirm:
                             if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
                                 await sql_update_emby(Emby.embyid == user["Id"], lv='c')
+                                disabled_count += 1
                                 msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} {activity_check_days}天未登录，已禁用\n\n"
                                 LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：{activity_check_days}天未活跃")
                             else:
                                 msg += f"**🎂活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n{activity_check_days}天未登录，禁用失败啦！检查emby连通性\n\n"
                                 LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：禁用失败啦！检查emby连通性")
                         else:
+                            disabled_count += 1
                             msg += f"**🔍扫描待处理** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} {activity_check_days}天未登录，待禁用\n\n"
                         continue  # 已经被第一项规则拦截，跳过时长检测
                     
@@ -190,12 +196,14 @@ class Uplaysinfo:
                             if confirm:
                                 if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
                                     await sql_update_emby(Emby.embyid == user["Id"], lv='c')
+                                    disabled_count += 1
                                     msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 过去30天观看时长不足{watch_threshold_hours}小时(当前{watch_time_hours:.1f}时)，已禁用\n\n"
                                     LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：30天内播放时长不足")
                                 else:
                                     msg += f"**🎂活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n由于播放时长不足禁用失败啦！检查emby连通性\n\n"
                                     LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：由于播放时长不足禁用失败")
                             else:
+                                disabled_count += 1
                                 msg += f"**🔍扫描待处理** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 过去30天观看时长不足{watch_threshold_hours}小时(当前{watch_time_hours:.1f}时)，待禁用\n\n"
                             continue
                             
@@ -204,14 +212,20 @@ class Uplaysinfo:
                     if confirm:
                         if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
                             await sql_update_emby(Emby.embyid == user["Id"], lv='c')
+                            disabled_count += 1
                             msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 注册后未活跃，已禁用\n\n"
                             LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：注册后未活跃禁用")
                         else:
                             msg += f"**🎂活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 注册后未活跃，禁用失败啦！检查emby连通性\n\n"
                             LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：禁用失败啦！检查emby连通性")
                     else:
+                        disabled_count += 1
                         msg += f"**🔍扫描待处理** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 注册后未活跃，待禁用\n\n"
-        msg += '**活跃检测结束**\n如果需要执行清理，请在命令后加上 `true` (例如 `/low_activity true` 或 `/low_activity 2 true`)\n' if not confirm else '**活跃检测并清理结束**\n'
+        
+        status_action = "执行处理" if confirm else "扫描出待处理"
+        msg += f'**活跃检测结束**\n总计{status_action}禁用账户: **{disabled_count}** 个，删除账户: **{deleted_count}** 个。\n'
+        if not confirm:
+            msg += '如果需要执行清理，请在命令后加上 `true` (例如 `/low_activity true` 或 `/low_activity 2 true`)\n'
         n = 1000
         chunks = [msg[i:i + n] for i in range(0, len(msg), n)]
         for c in chunks:

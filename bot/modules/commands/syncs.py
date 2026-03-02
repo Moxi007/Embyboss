@@ -633,3 +633,88 @@ async def delete_all_users(_, msg):
         else:
             await sendMessage(msg, text="**⚡跑路命令任务 结束！没有用户被删除。**")
         LOGGER.info(f"【跑路命令任务结束】 - {sign_name} 共检索出 {len(allusers)} 个 Emby 账户\n成功删除 {delete_user_in_emby_count} 个账户\n耗时：{times:.3f}s")
+
+
+@bot.on_message(filters.command('rm_disabled', prefixes) & filters.user(config.owner))
+async def delete_all_disabled_users(_, msg):
+    """
+    删除所有已禁用账号：从 Emby 库中查询出所有用户，提取被禁用的用户，并在 Emby 和 数据库中将其删除
+    需要确认：/rm_disabled true
+    """
+    await deleteMessage(msg)
+    try:
+        confirm_delete = msg.command[1]
+    except:
+        return await sendMessage(msg,
+                                 '⚠️ 注意: 此操作将删除所有已禁用的账户，如确定使用请输入 `/rm_disabled true`')
+    
+    if confirm_delete == 'true':
+        sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'{msg.from_user.first_name}'
+        LOGGER.info(f"{sign_name} 执行了删除所有禁用用户命令")
+        send = await sendPhoto(msg, photo=config.bot_photo, caption="⚡删除禁用用户任务\n  **正在开启中...**",
+                               send=True)
+        
+        success, allusers = await emby.users()
+        if not success or allusers is None:
+            return await send.edit("⚡删除禁用用户任务\n\n结束！获取 Emby 用户列表失败。")
+        allusers_in_db = await get_all_emby(Emby.name is not None)
+        
+        delete_user_in_emby_count = delete_user_in_bot_count = index = 0
+        text = ''
+        start = time.perf_counter()
+        for emby_user in allusers:
+            try:
+                # 检查是否为禁用状态
+                policy = emby_user.get('Policy', {})
+                if policy and bool(policy.get('IsAdministrator', False)):
+                    continue
+                if not bool(policy.get('IsDisabled', False)):
+                    continue
+
+                emby_name = emby_user.get('Name')
+                emby_id = emby_user.get('Id')
+                if not emby_name or not emby_id:
+                    continue
+
+                if await emby.emby_del(emby_id=emby_id):    
+                    delete_user_in_emby_count += 1
+                    index += 1
+                    db_user = next((user for user in allusers_in_db if user.name == emby_name), None)
+                    if not db_user:
+                        continue
+                    
+                    if db_user.embyid:
+                        delete_result = await sql_delete_emby(tg=db_user.tg, embyid=db_user.embyid)
+                    else:
+                        delete_result = await sql_delete_emby(tg=db_user.tg)
+                    
+                    if delete_result:
+                        delete_user_in_bot_count += 1
+                        reply_text = f'{index}. [{emby_name}](tg://user?id={db_user.tg}) - #id{db_user.tg} (已禁用) 处理并彻底删除\n'
+                        LOGGER.info(reply_text)
+                    else:
+                        reply_text = f'{index}. [{emby_name}](tg://user?id={db_user.tg}) - #id{db_user.tg} (已禁用) 数据库删除记录失败\n'
+                        LOGGER.error(reply_text)
+                else:
+                    db_user = next((user for user in allusers_in_db if user.name == emby_name), None)
+                    reply_text = f'[{emby_name}]' + (f'(tg://user?id={db_user.tg}) - #id{db_user.tg}' if db_user else '') + ' (已禁用) Emby账号删除失败\n'
+                    LOGGER.error(reply_text)
+                text += reply_text
+            except Exception as e:
+                reply_text = f'处理禁用用户 {emby_user.get("Name", "未知")} 时发生异常: {str(e)}\n'
+                LOGGER.error(reply_text)
+                text += reply_text
+                continue
+        
+        chunks = split_long_message(text)
+        for c in chunks:
+            await sendMessage(msg, c + f'\n🔈 当前时间：{datetime.now().strftime("%Y-%m-%d")}')
+        
+        end = time.perf_counter()
+        times = end - start
+        if delete_user_in_emby_count != 0:
+            await sendMessage(msg,
+                            text=f"**⚡删除禁用用户任务 结束！**\n共检索系统用户并成功彻底删除 {delete_user_in_emby_count} 个已禁用账户\n耗时：{times:.3f}s")
+        else:
+            await sendMessage(msg, text="**⚡删除禁用用户任务 结束！没有发现需要删除的禁用用户。**")
+        LOGGER.info(f"【删除禁用用户任务结束】 - {sign_name} 成功彻底删除 {delete_user_in_emby_count} 个已禁用账户\n耗时：{times:.3f}s")
