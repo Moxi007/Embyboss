@@ -725,16 +725,17 @@ class Embyservice(metaclass=Singleton):
         :return: 查询结果
         """
         try:
-            sub_time = datetime.now(timezone(timedelta(hours=8)))
+            # Emby 数据库 DateCreated 存储为 UTC 时间，因此这里必须用 UTC 而非北京时间
+            sub_time = datetime.now(timezone.utc)
             start_time = (sub_time - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
             end_time = sub_time.strftime("%Y-%m-%d %H:%M:%S")
             
             # 注意：由于Emby API的限制，这里仍然需要拼接SQL
             # 在实际生产环境中，建议在Emby服务器端实现参数化查询
             if method == 'sp':
-                final_sql = f"SELECT UserId, SUM(PlayDuration - PauseDuration) AS WatchTime FROM PlaybackActivity WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId ORDER BY WatchTime DESC"
+                final_sql = f"SELECT UserId, SUM(IFNULL(PlayDuration, 0) - IFNULL(PauseDuration, 0)) AS WatchTime FROM PlaybackActivity WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId ORDER BY WatchTime DESC"
             else:
-                final_sql = f"SELECT MAX(DateCreated) AS LastLogin, SUM(PlayDuration - PauseDuration) / 60 AS WatchTime FROM PlaybackActivity WHERE UserId = '{emby_id}' AND DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId"
+                final_sql = f"SELECT MAX(DateCreated) AS LastLogin, SUM(IFNULL(PlayDuration, 0) - IFNULL(PauseDuration, 0)) / 60 AS WatchTime FROM PlaybackActivity WHERE UserId = '{emby_id}' AND DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId"
             
             data = {
                 "CustomQueryString": final_sql,

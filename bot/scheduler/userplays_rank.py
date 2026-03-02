@@ -192,7 +192,9 @@ class Uplaysinfo:
                                 watch_time_mins = int(val) if val else 0
                         
                         watch_time_hours = watch_time_mins / 60
-                        if watch_time_hours < watch_threshold_hours:
+                        # 允许 15 分钟的容错（0.25 时），避免因记录精度或短时暂停导致达标用户被封禁
+                        tolerance_hours = 0.25
+                        if watch_time_hours < (watch_threshold_hours - tolerance_hours):
                             if confirm:
                                 if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
                                     await sql_update_emby(Emby.embyid == user["Id"], lv='c')
