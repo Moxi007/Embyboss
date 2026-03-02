@@ -67,6 +67,8 @@ async def sync_emby_group(_, msg):
                     reply_text = f'{b}. #id{i.tg} - [{i.name}](tg://user?id={i.tg}) 删除错误\n'
                     LOGGER.error(reply_text)
                 text += reply_text
+                # 防止大批量操作导致 Emby API/SQLite 卡死
+                await sleep(0.3)
                 try:
                     await bot.send_message(i.tg, reply_text)
                 except FloodWait as f:
@@ -127,6 +129,7 @@ async def sync_emby_unbound(_, msg):
                             if confirm_delete:
                                 await emby.emby_del(emby_id=embyid)
                                 text += f"🎯 #{v['Name']} 未绑定bot，删除\n"
+                                await sleep(0.3)  # 防止大批量操作导致 Emby API/SQLite 卡死
                             else:
                                 text += f"🎯 #{v['Name']} 未绑定bot\n"
             except Exception as e:
@@ -446,6 +449,9 @@ async def unban_all_users(_, msg):
                 LOGGER.error(reply_text)
                 text += reply_text
                 continue
+            finally:
+                # 防止大批量操作导致 Emby API/SQLite 卡死
+                await sleep(0.3)
         
         # 防止触发 MESSAGE_TOO_LONG 异常
         chunks = split_long_message(text)
@@ -538,6 +544,9 @@ async def ban_all_users(_, msg):
                 LOGGER.error(reply_text)
                 text += reply_text
                 continue
+            finally:
+                # 防止大批量操作导致 Emby API/SQLite 卡死
+                await sleep(0.3)
         
         # 防止触发 MESSAGE_TOO_LONG 异常
         chunks = split_long_message(text)
@@ -619,6 +628,9 @@ async def delete_all_users(_, msg):
                 LOGGER.error(reply_text)
                 text += reply_text
                 continue
+            finally:
+                # 防止大批量操作导致 Emby API/SQLite 卡死
+                await sleep(0.3)
         
         # 防止触发 MESSAGE_TOO_LONG 异常
         chunks = split_long_message(text)
@@ -705,6 +717,9 @@ async def delete_all_disabled_users(_, msg):
                 LOGGER.error(reply_text)
                 text += reply_text
                 continue
+            finally:
+                # 防止大批量操作导致 Emby API/SQLite 卡死
+                await sleep(0.3)
         
         chunks = split_long_message(text)
         for c in chunks:

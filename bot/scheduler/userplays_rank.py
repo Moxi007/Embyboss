@@ -1,3 +1,4 @@
+import asyncio
 import math
 import cn2an
 from datetime import datetime, timezone, timedelta
@@ -180,16 +181,14 @@ class Uplaysinfo:
                         # 使用 Emby 查询过去 30 天的时长数据
                         play_stats = await emby.emby_cust_commit(emby_id=user["Id"], days=30)
                         
-                        # 返回的 play_stats 预期为只包含一行的列表，通常为一个包含两个元素的列表，例如 [["2024-...", 120]]，WatchTime在此查询为第二项(单位为分钟)
+                        # 统一使用与 /myinfo 相同的解析逻辑，并增加安全解包保护
                         watch_time_mins = 0
-                        if play_stats and len(play_stats) > 0:
-                            first_row = play_stats[0]
-                            if isinstance(first_row, dict):
-                                val = first_row.get("WatchTime")
+                        try:
+                            if play_stats and len(play_stats) > 0:
+                                val = play_stats[0][1]
                                 watch_time_mins = int(val) if val else 0
-                            elif isinstance(first_row, (list, tuple)) and len(first_row) >= 2:
-                                val = first_row[1]
-                                watch_time_mins = int(val) if val else 0
+                        except (TypeError, IndexError, ValueError):
+                            watch_time_mins = 0
                         
                         watch_time_hours = watch_time_mins / 60
                         # 允许 15 分钟的容错（0.25 时），避免因记录精度或短时暂停导致达标用户被封禁
@@ -223,6 +222,9 @@ class Uplaysinfo:
                     else:
                         disabled_count += 1
                         msg += f"**🔍扫描待处理** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 注册后未活跃，待禁用\n\n"
+            
+            # 引入 0.1 秒的防御性延迟，防止出现大批量（如 700+）请求导致 Emby API/SQLite 并发卡死
+            await asyncio.sleep(0.1)
         
         status_action = "执行处理" if confirm else "扫描出待处理"
         msg += f'**活跃检测结束**\n总计{status_action}禁用账户: **{disabled_count}** 个，删除账户: **{deleted_count}** 个。\n'
