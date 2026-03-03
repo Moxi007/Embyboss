@@ -130,11 +130,10 @@ class Embyservice(metaclass=Singleton):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.82'
         }
 
-    @asynccontextmanager
-    async def session(self):
+    async def get_session(self) -> aiohttp.ClientSession:
         """
-        异步上下文管理器，管理 aiohttp 会话
-        自动处理会话的创建和复用
+        获取安全的 aiohttp 会话实例
+        如果不存在或已关闭，则重新创建
         """
         async with self._session_lock:
             if self._session is None or self._session.closed:
@@ -149,12 +148,7 @@ class Embyservice(metaclass=Singleton):
                     connector=connector,
                     raise_for_status=False  # 手动处理HTTP状态码
                 )
-        
-        try:
-            yield self._session
-        except Exception as e:
-            LOGGER.error(f"会话使用异常: {str(e)}")
-            raise
+        return self._session
 
     async def close(self):
         """关闭会话并清理资源"""
@@ -179,8 +173,8 @@ class Embyservice(metaclass=Singleton):
         
         for attempt in range(self.max_retries):
             try:
-                async with self.session() as session:
-                    async with session.request(method, url, headers=final_headers, **kwargs) as response:
+                session = await self.get_session()
+                async with session.request(method, url, headers=final_headers, **kwargs) as response:
                         # 检查HTTP状态码
                         if response.status in [200, 204]:
                             if response.status == 204:
