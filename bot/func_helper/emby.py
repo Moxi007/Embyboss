@@ -102,12 +102,30 @@ class Embyservice(metaclass=Singleton):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         
         self._session: Optional[aiohttp.ClientSession] = None
-        self._session_lock = asyncio.Lock()
+        self._session_lock: Optional[asyncio.Lock] = None
         
         # 限制 Emby 账户创建并发数，保护 SQLite 数据库
-        self._create_semaphore = asyncio.Semaphore(1)
+        self._create_semaphore: Optional[asyncio.Semaphore] = None
         # 限制 Emby 账户操作保护，避免批量删除锁表
-        self._write_semaphore = asyncio.Semaphore(3)
+        self._write_semaphore: Optional[asyncio.Semaphore] = None
+        
+    @property
+    def session_lock(self) -> asyncio.Lock:
+        if self._session_lock is None:
+            self._session_lock = asyncio.Lock()
+        return self._session_lock
+
+    @property
+    def create_semaphore(self) -> asyncio.Semaphore:
+        if self._create_semaphore is None:
+            self._create_semaphore = asyncio.Semaphore(1)
+        return self._create_semaphore
+
+    @property
+    def write_semaphore(self) -> asyncio.Semaphore:
+        if self._write_semaphore is None:
+            self._write_semaphore = asyncio.Semaphore(3)
+        return self._write_semaphore
 
     @property
     def url(self):
@@ -135,7 +153,7 @@ class Embyservice(metaclass=Singleton):
         获取安全的 aiohttp 会话实例
         如果不存在或已关闭，则重新创建
         """
-        async with self._session_lock:
+        async with self.session_lock:
             if self._session is None or self._session.closed:
                 connector = aiohttp.TCPConnector(
                     limit=100,  # 连接池大小
@@ -240,7 +258,7 @@ class Embyservice(metaclass=Singleton):
         :param days: 有效天数
         :return: (用户ID, 密码, 过期时间) 或 False
         """
-        async with self._create_semaphore:
+        async with self.create_semaphore:
             # 增加少许延迟，给予 Emby SQLite 写入喘息时间 (约 1-2个注册/s)
             await asyncio.sleep(0.5)
             try:
@@ -297,7 +315,7 @@ class Embyservice(metaclass=Singleton):
         :param emby_id: 用户ID
         :return: 是否成功
         """
-        async with self._write_semaphore:
+        async with self.write_semaphore:
             # 延时以防批量删除高并发将 SQLite 锁死
             await asyncio.sleep(0.3)
             try:
