@@ -92,7 +92,7 @@ class Embyservice(metaclass=Singleton):
     提供统一的异步HTTP请求、错误处理、重试机制和资源管理
     """
 
-    def __init__(self, timeout: int = 10, max_retries: int = 1):
+    def __init__(self, timeout: int = 60, max_retries: int = 2):
         """
         初始化 Emby 服务
         :param timeout: 请求超时时间（秒）
