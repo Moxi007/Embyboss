@@ -148,6 +148,7 @@ owner_p = admin_p + [
     BotCommand("backup_db", "手动备份数据库[owner]"),
     BotCommand("unbanall", "解除所有用户的禁用状态 [owner]"),
     BotCommand("banall", "禁用所有用户 [owner]"),
+    BotCommand("rm_disabled", "删除所有已禁用的账号 [owner]"),
     BotCommand("paolu", "跑路!!!删除所有用户 [owner]"),
     BotCommand('restore_from_db', '恢复Emby账户[owner]'),
     BotCommand("config", "开启bot高级控制面板 [owner]"),
