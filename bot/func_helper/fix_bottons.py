@@ -474,9 +474,16 @@ async def cr_kk_ikb(uid, first):
                         keyboard.append([f'关闭额外媒体库', f'embyextralib_block-{uid}'])
             try:
                 rst = await emby.emby_cust_commit(emby_id=embyid, days=30)
-                last_time = rst[0][0]
-                toltime = rst[0][1]
-                text1 = f"**· 🔋 上次活动** | {last_time.split('.')[0]}\n" \
+                if rst and len(rst) > 0 and rst[0]:
+                    last_time = rst[0][0] if rst[0][0] else "未知"
+                    toltime = rst[0][1] if rst[0][1] else 0
+                    if last_time != "未知" and "." in last_time:
+                        last_time = last_time.split('.')[0]
+                else:
+                    last_time = "无记录"
+                    toltime = 0
+                    
+                text1 = f"**· 🔋 上次活动** | {last_time}\n" \
                         f"**· 📅 过去30天** | {toltime} 分钟"
             except (TypeError, IndexError, ValueError):
                 text1 = f"**· 📅 过去30天未有记录**"
