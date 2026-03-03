@@ -733,9 +733,9 @@ class Embyservice(metaclass=Singleton):
             # 注意：由于Emby API的限制，这里仍然需要拼接SQL
             # 在实际生产环境中，建议在Emby服务器端实现参数化查询
             if method == 'sp':
-                final_sql = f"SELECT UserId, SUM(IFNULL(PlayDuration, 0) - IFNULL(PauseDuration, 0)) AS WatchTime FROM PlaybackActivity WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId ORDER BY WatchTime DESC"
+                final_sql = f"SELECT UserId, SUM(PlayDuration - PauseDuration) AS WatchTime FROM PlaybackActivity WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId ORDER BY WatchTime DESC"
             else:
-                final_sql = f"SELECT MAX(DateCreated) AS LastLogin, SUM(IFNULL(PlayDuration, 0) - IFNULL(PauseDuration, 0)) / 60 AS WatchTime FROM PlaybackActivity WHERE UserId = '{emby_id}' AND DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId"
+                final_sql = f"SELECT MAX(DateCreated) AS LastLogin, SUM(PlayDuration - PauseDuration) / 60 AS WatchTime FROM PlaybackActivity WHERE UserId = '{emby_id}' AND DateCreated >= '{start_time}' AND DateCreated < '{end_time}' GROUP BY UserId"
             
             data = {
                 "CustomQueryString": final_sql,
