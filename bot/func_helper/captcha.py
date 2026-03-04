@@ -44,17 +44,28 @@ def generate_math_captcha(user_id: int, action: str, payload: dict = None):
     keyboard = ikb(lines)
     
     # 存入缓存
-    captcha_cache.set(f"captcha_req_{user_id}", {"ans": ans, "action": action, "payload": payload or {}})
+    captcha_cache.set(f"captcha_req_{user_id}", {"ans": ans, "action": action, "payload": payload or {}, "tries": 0})
     return question, keyboard
 
 def verify_math_captcha(user_id: int, selected_ans: int):
     """
-    验证数学验证码，验证成功后返回 true 及 payload，验证失败返回 false 及 payload。
+    验证数学验证码。
+    返回: (成功标识, 是否继续许可, 遗留尝试次数, 请求体Payload)
     """
     req = captcha_cache.get(f"captcha_req_{user_id}")
     if not req:
-        return False, None
+        return False, False, 0, None
+        
     if req["ans"] == selected_ans:
         captcha_cache.delete(f"captcha_req_{user_id}")
-        return True, req
-    return False, req
+        return True, True, 0, req
+        
+    req["tries"] += 1
+    left_tries = 3 - req["tries"]
+    if left_tries <= 0:
+        # 次数耗尽
+        captcha_cache.delete(f"captcha_req_{user_id}")
+        return False, False, 0, req
+    else:
+        captcha_cache.set(f"captcha_req_{user_id}", req)
+        return False, True, left_tries, req

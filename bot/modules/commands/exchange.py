@@ -128,15 +128,18 @@ async def rgs_code(_, msg, register_code, passed_captcha=False):
             x = data.us + us1
             await session.execute(update(Emby).where(Emby.tg == msg.from_user.id).values(us=x))
             await session.commit()
+            await session.commit()
             await sendPhoto(msg, photo=config.bot_photo,
-                            caption=f'🎊 少年郎，恭喜你，已经收到了 [{first_name}](tg://user?id={tg1}) 发送的邀请注册资格\n\n请选择你的选项~',
-                            buttons=register_code_ikb)
+                            caption=f'🎊 少年郎，恭喜你，已经收到了 [{first_name}](tg://user?id={tg1}) 发送的邀请注册资格\n\n**正在直接为您呼出注册界面...**')
             new_code = register_code[:-7] + "░" * 7
             await sendMessage(msg,
                               f'· 🎟️ 注册码使用 - [{msg.from_user.first_name}](tg://user?id={msg.chat.id}) [{msg.from_user.id}] 使用了 {new_code}',
                               send=True)
             LOGGER.info(
                 f"【注册码】：{msg.from_user.first_name}[{msg.chat.id}] 使用了 {register_code} - {us1}")
+            
+            from bot.modules.panel.member_panel import create_user
+            await create_user(_, msg, us=x, stats=False)
 
 # @bot.on_message(filters.regex('exchange') & filters.private & user_in_group_on_filter)
 # async def exchange_buttons(_, call):

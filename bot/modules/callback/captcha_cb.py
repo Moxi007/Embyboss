@@ -1,19 +1,14 @@
 import asyncio
 from pyrogram import filters
 from bot import bot, LOGGER
-from bot.func_helper.captcha import verify_math_captcha
+from bot.func_helper.captcha import verify_math_captcha, generate_math_captcha
 from bot.func_helper.msg_utils import callAnswer, editMessage
-
-class MockChat:
-    def __init__(self, chat_id):
-        self.id = chat_id
-        self.type = "private"
 
 class MockMsg:
     """为了兼容旧的基于msg传参的逻辑伪造一个Message对像"""
     def __init__(self, call):
         self.from_user = call.from_user
-        self.chat = MockChat(call.from_user.id)
+        self.chat = call.message.chat
         self.id = call.message.id
         self.delete = call.message.delete
         self.reply = call.message.reply
@@ -22,14 +17,33 @@ class MockMsg:
 @bot.on_callback_query(filters.regex(r'^captcha_(\d+)$'))
 async def on_captcha(_, call):
     selected_ans = int(call.matches[0].group(1))
-    success, req = verify_math_captcha(call.from_user.id, selected_ans)
+    success, can_continue, left_tries, req = verify_math_captcha(call.from_user.id, selected_ans)
     
-    if not req:
+    if not can_continue and not req:
         return await callAnswer(call, "⚠️ 验证码已过期或无效，请重新发起操作。", True)
         
-    if not success:
-        await editMessage(call, "❌ 答案错误！请求已被拒绝。")
-        return await callAnswer(call, "❌ 答案错误！请求已被拒绝。", True)
+    if not can_continue and req:
+        await editMessage(call, "❌ 错误次数过多！请求已被拒绝。")
+        return await callAnswer(call, "❌ 错误次数过多或无效！请求已被拒绝。", True)
+        
+    if not success and can_continue:
+        # 答错了但是还有机会，重新发一份验证码覆盖
+        action = req.get("action")
+        payload = req.get("payload", {})
+        
+        # 为了保留已有的重试次数，我们需要先取出来再放回去（generate_math_captcha内部默认归0）
+        # 对此，我们可以直接在这进行原题重载。但为了防止被暴力利用，我们可以让其重新生题。
+        # 更好的做法是在这里直接让题目重出。
+        question, keyboard = generate_math_captcha(call.from_user.id, action, payload)
+        # 修复刚重新生成的缓存覆盖问题，把错误次数再回写。
+        from bot.func_helper.captcha import captcha_cache
+        new_req = captcha_cache.get(f"captcha_req_{call.from_user.id}")
+        if new_req:
+            new_req["tries"] = 3 - left_tries
+            captcha_cache.set(f"captcha_req_{call.from_user.id}", new_req)
+            
+        await editMessage(call, f"❌ 答案错误！您还有 {left_tries} 次机会。\n\n🤖 **防机器人验证**\n重新计算以下算式：\n\n**{question}**", reply_markup=keyboard)
+        return await callAnswer(call, f"❌ 答案错误！您还有 {left_tries} 次机会。", True)
         
     await callAnswer(call, "✅ 验证通过，处理中...", False)
     
@@ -38,19 +52,11 @@ async def on_captcha(_, call):
     
     if action == "create":
         from bot.modules.panel.member_panel import create
-        # 如果是在私聊答题的，我们没有了原先面板那里的界面用于 editMessage，因此提供一个新的MockMsg模拟私有对话的Call环境
-        class MockCall:
-            def __init__(self, original_call):
-                self.from_user = original_call.from_user
-                self.message = original_call.message
-                self.data = 'create'
-            
-            async def answer(self, text="", show_alert=False, url="", cache_time=0):
-                return True
-                
-        mock_call = MockCall(call)
+        # 直接使用原有的 call 对象，因为底层的 ask_return 会判断 isinstance(update, CallbackQuery)
+        # 用伪造对象会导致判断失败从而按 Message 取 .chat 报错
+        call.data = 'create'
         await call.message.delete()
-        await create(_, mock_call, passed_captcha=True)
+        await create(_, call, passed_captcha=True)
 
     elif action == "rgs_code":
         from bot.modules.commands.exchange import rgs_code
