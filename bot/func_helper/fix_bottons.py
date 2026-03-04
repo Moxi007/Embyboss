@@ -478,16 +478,7 @@ async def cr_kk_ikb(uid, first):
                     last_time = rst[0][0] if rst[0][0] else "未知"
                     toltime = rst[0][1] if rst[0][1] else 0
                     if last_time != "未知":
-                        try:
-                            # Parse Emby's UTC DateCreated string (e.g. "2026-03-03 14:00:39.2909666")
-                            from datetime import datetime, timedelta
-                            time_str = last_time.split('.')[0] # drop fractional seconds
-                            utc_dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
-                            # Convert to Beijing time
-                            bj_dt = utc_dt + timedelta(hours=8)
-                            last_time = bj_dt.strftime("%Y-%m-%d %H:%M:%S")
-                        except Exception as e:
-                            last_time = last_time.split('.')[0] if '.' in last_time else last_time
+                        last_time = last_time.split('.')[0] if '.' in last_time else last_time
                 else:
                     last_time = "无记录"
                     toltime = 0
