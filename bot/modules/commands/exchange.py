@@ -29,7 +29,10 @@ async def rgs_code(_, msg, register_code, passed_captcha=False):
         from bot.func_helper.captcha import generate_math_captcha
         user_id = msg.from_user.id
         question, keyboard = generate_math_captcha(user_id, "rgs_code", {"code": register_code})
-        await sendMessage(msg, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案（倒计时 120s）：\n\n**{question}**", buttons=keyboard, send=True)
+        try:
+            await bot.send_message(user_id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案（倒计时 120s）：\n\n**{question}**", reply_markup=keyboard)
+        except Exception:
+            pass
         return
 
     data = await sql_get_emby(tg=msg.from_user.id)

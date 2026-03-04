@@ -143,7 +143,11 @@ async def create(_, call, passed_captcha=False):
         if not passed_captcha:
             from bot.func_helper.captcha import generate_math_captcha
             question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": e.us, "stats": False})
-            return await editMessage(call, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", buttons=keyboard)
+            try:
+                await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
+            except Exception:
+                pass
+            return
 
         send = await callAnswer(call, f'🪙 资质核验成功，请稍后。', True)
         if send is False:
@@ -154,7 +158,11 @@ async def create(_, call, passed_captcha=False):
         if not passed_captcha:
             from bot.func_helper.captcha import generate_math_captcha
             question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": config.open.open_us, "stats": True})
-            return await editMessage(call, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", buttons=keyboard)
+            try:
+                await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
+            except Exception:
+                pass
+            return
 
         send = await callAnswer(call, f"🪙 开放注册中，免除资质核验。", True)
         if send is False:

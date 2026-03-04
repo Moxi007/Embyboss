@@ -25,13 +25,12 @@ def generate_math_captcha(user_id: int, action: str, payload: dict = None):
         
     question = f"{a} {op} {b} = ?"
     
-    options = {ans}
+    options = [ans]
     while len(options) < 6:
         wrong_ans = ans + random.randint(-15, 15)
-        if wrong_ans != ans and wrong_ans >= 0:
-            options.add(wrong_ans)
+        if wrong_ans != ans and wrong_ans >= 0 and wrong_ans not in options:
+            options.append(wrong_ans)
     
-    options = list(options)
     random.shuffle(options)
     
     buttons = []
