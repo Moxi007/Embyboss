@@ -121,7 +121,7 @@ async def members(_, call):
 
 # 创建账户
 @bot.on_callback_query(filters.regex('create') & user_in_group_on_filter)
-async def create(_, call):
+async def create(_, call, passed_captcha=False):
     """
 
     当队列已满时，用户会收到等待提示。
@@ -140,12 +140,22 @@ async def create(_, call):
     elif not config.open.stat and int(e.us) <= 0:
         await callAnswer(call, f'🤖 自助注册已关闭，等待开启或使用注册码注册。', True)
     elif not config.open.stat and int(e.us) > 0:
+        if not passed_captcha:
+            from bot.func_helper.captcha import generate_math_captcha
+            question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": e.us, "stats": False})
+            return await editMessage(call, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", buttons=keyboard)
+
         send = await callAnswer(call, f'🪙 资质核验成功，请稍后。', True)
         if send is False:
             return
         else:
             await create_user(_, call, us=e.us, stats=False)
     elif config.open.stat:
+        if not passed_captcha:
+            from bot.func_helper.captcha import generate_math_captcha
+            question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": config.open.open_us, "stats": True})
+            return await editMessage(call, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", buttons=keyboard)
+
         send = await callAnswer(call, f"🪙 开放注册中，免除资质核验。", True)
         if send is False:
             return
