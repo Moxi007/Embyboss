@@ -46,15 +46,17 @@ async def create_user(_, call, us, stats):
     except (IndexError, ValueError):
         await msg.reply(f'⚠️ 输入格式错误\n\n`{msg.text}`\n **会话已结束！**')
     else:
-        # 再次检查限制（双重检查）
-        if config.open.tem >= config.open.all_user:
-            return await msg.reply(f'**🚫 很抱歉，注册总数({config.open.tem})已达限制({config.open.all_user})。**')
-        
         send = await msg.reply(
-            f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}**  安全码：**{emby_pwd2}** \n\n__正在为您初始化账户，更新用户策略__......')
+            f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}**  安全码：**{emby_pwd2}** \n\n__正在为您排队并初始化账户，更新策略__......')
         
-        # emby api操作
-        data = await emby.emby_create(name=emby_name, days=us)
+        async with _create_user_lock:
+            # 再次检查限制（双重检查），避免排队后超发
+            if config.open.tem >= config.open.all_user:
+                return await editMessage(send, f'**🚫 很抱歉，注册总数({config.open.tem})已达限制({config.open.all_user})。**',
+                                         re_create_ikb)
+
+            # emby api操作
+            data = await emby.emby_create(name=emby_name, days=us)
         if not data:
             await editMessage(send,
                               '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**',

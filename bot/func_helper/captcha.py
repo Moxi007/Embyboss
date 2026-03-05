@@ -3,7 +3,7 @@ from cacheout import Cache
 from pyromod.helpers import array_chunk, ikb
 
 # 验证码全局缓存，存活期120秒，最多处理2000个并发验证验证请求。
-captcha_cache = Cache(maxsize=2000, ttl=120)
+captcha_cache = Cache(maxsize=20000, ttl=300)
 
 def generate_math_captcha(user_id: int, action: str, payload: dict = None):
     """
