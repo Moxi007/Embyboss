@@ -33,10 +33,25 @@ async def user_in_checkin(_, call):
                 if e.lv > config.open.checkin_lv:
                     await callAnswer(call, f'❌ 您无权签到，如有异议，请不要有异议。', True)
                     return
-            reward = random.randint(config.open.checkin_reward[0], config.open.checkin_reward[1])
+            # 判断是否跨月，计算当月累计签到天数
+            current_month = now.strftime("%Y-%m")
+            last_month = e.ch.strftime("%Y-%m") if e.ch else ""
+            if current_month == last_month:
+                new_days = getattr(e, 'checkin_days', 0) + 1  # 兼容没及时迁移
+            else:
+                new_days = 1
+
+            # 根据当月累计天数阶梯奖励
+            if 1 <= new_days <= 15:
+                reward = random.randint(3, 4)
+            elif 16 <= new_days <= 27:
+                reward = random.randint(4, 5)
+            else:
+                reward = random.randint(2, 3)
+
             s = e.iv + reward
-            await sql_update_emby(Emby.tg == call.from_user.id, iv=s, ch=now)
-            text = f'🎉 **签到成功** | {reward} {config.money}\n💴 **当前持有** | {s} {config.money}\n⏳ **签到日期** | {now.strftime("%Y-%m-%d")}'
+            await sql_update_emby(Emby.tg == call.from_user.id, iv=s, ch=now, checkin_days=new_days)
+            text = f'🎉 **签到成功** | 本月已签 `{new_days}` 天\n🎁 **获得奖励** | `{reward}` {config.money}\n💴 **当前持有** | `{s}` {config.money}\n⏳ **签到日期** | {now.strftime("%Y-%m-%d")}'
             await asyncio.gather(deleteMessage(call), sendMessage(call, text=text))
 
         else:

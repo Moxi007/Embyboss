@@ -427,11 +427,26 @@ async def verify_checkin(
             await send_log_to_tg('ℹ️ 已签', request_data.user_id, log_reason, client_ip, user_agent)
             raise HTTPException(status_code=409, detail="您今天已经签到过了，再签到剁掉你的小鸡鸡🐤")
 
-        reward = random.randint(config.open.checkin_reward[0], config.open.checkin_reward[1])
+        # 判断是否跨月，计算当月累计签到天数
+        current_month = now.strftime("%Y-%m")
+        last_month = e.ch.strftime("%Y-%m") if e.ch else ""
+        if current_month == last_month:
+            new_days = getattr(e, 'checkin_days', 0) + 1
+        else:
+            new_days = 1
+            
+        # 根据当月累计天数阶梯奖励
+        if 1 <= new_days <= 15:
+            reward = random.randint(3, 4)
+        elif 16 <= new_days <= 27:
+            reward = random.randint(4, 5)
+        else:
+            reward = random.randint(2, 3)
+
         new_balance = e.iv + reward
 
         try:
-            await sql_update_emby(Emby.tg == request_data.user_id, iv=new_balance, ch=now)
+            await sql_update_emby(Emby.tg == request_data.user_id, iv=new_balance, ch=now, checkin_days=new_days)
         except Exception as db_err:
             reason = f"数据库更新错误: {db_err}"
             LOGGER.error(f"❌ 签到失败 ({reason}) - {log_base_info}")
@@ -447,7 +462,7 @@ async def verify_checkin(
         LOGGER.info(f"✔️ 签到成功 ({success_reason}) - {log_base_info}")
         await send_log_to_tg('✅ 成功', request_data.user_id, success_reason, client_ip, user_agent)
 
-        checkin_text = f'🎉 **签到成功** | {reward} {config.money}\n💴 **当前持有** | {new_balance} {config.money}\n⏳ **签到日期** | {now.strftime("%Y-%m-%d")}'
+        checkin_text = f'🎉 **签到成功** | 本月已签 `{new_days}` 天\n🎁 **获得奖励** | `{reward}` {config.money}\n💴 **当前持有** | `{new_balance}` {config.money}\n⏳ **签到日期** | {now.strftime("%Y-%m-%d")}'
 
         try:
             from bot import bot
@@ -459,7 +474,7 @@ async def verify_checkin(
 
         return JSONResponse({
             "success": True,
-            "message": "签到成功",
+            "message": f"签到成功！本月已签 {new_days} 天",
             "reward": f"获得 {reward} {config.money}，当前持有 {new_balance} {config.money}",
             "should_close": True
         })

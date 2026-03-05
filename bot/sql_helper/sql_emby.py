@@ -22,6 +22,7 @@ class Emby(Base):
     us = Column(Integer, default=0)
     iv = Column(Integer, default=0)
     ch = Column(DateTime, nullable=True)
+    checkin_days = Column(Integer, default=0)
     game_played = Column(Integer, default=0)  # 参与游戏总场次
     game_won = Column(Integer, default=0)     # 获胜游戏场次
 
@@ -65,6 +66,19 @@ async def migrate_add_game_stats_fields():
             else:
                 LOGGER.info("game_won 字段已存在，跳过迁移")
             
+            # 添加 checkin_days 字段
+            if 'checkin_days' not in existing_columns:
+                LOGGER.info("检测到 checkin_days 字段不存在，开始添加...")
+                try:
+                    await session.execute(text("ALTER TABLE emby ADD COLUMN checkin_days INT DEFAULT 0 NOT NULL"))
+                    await session.commit()
+                    LOGGER.info("成功添加 checkin_days 字段")
+                except Exception as e:
+                    LOGGER.error(f"添加 checkin_days 字段失败: {e}")
+                    await session.rollback()
+            else:
+                LOGGER.info("checkin_days 字段已存在，跳过迁移")
+
             LOGGER.info("数据库迁移完成")
             return True
             
