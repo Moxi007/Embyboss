@@ -30,9 +30,9 @@ from bot.sql_helper.sql_emby2 import sql_get_emby2, sql_delete_emby2
 _create_user_lock = asyncio.Lock()
 
 # 创号函数
-async def create_user(_, call, us, stats):
+async def create_user(_, call, us, stats, is_queued=False):
     msg = await ask_return(call,
-                           text='🤖**注意：您已进入注册状态:\n\n• 请在2min内输入 `[用户名][空格][安全码]`\n• 举个例子🌰：`苏苏 1234`**\n\n• 用户名中不限制中/英文/emoji，🚫**特殊字符**'
+                           text='🤖**注意：您已进入排队注册流程:\n\n• 请在2min内输入 `[用户名][空格][安全码]`\n• 举个例子🌰：`苏苏 1234`**\n\n• 用户名中不限制中/英文/emoji，🚫**特殊字符**'
                                 '\n• 安全码为敏感操作时附加验证，请填入最熟悉的数字4~6位；退出请点 /cancel', timer=120,
                            button=close_it_ikb)
     if not msg:
@@ -58,9 +58,16 @@ async def create_user(_, call, us, stats):
             # emby api操作
             data = await emby.emby_create(name=emby_name, days=us)
         if not data:
-            await editMessage(send,
-                              '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**',
-                              re_create_ikb)
+            if is_queued:
+                try:
+                    await send.delete()
+                except:
+                    pass
+                await bot.send_message(call.from_user.id, '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**', reply_markup=re_create_ikb)
+            else:
+                await editMessage(send,
+                                  '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**',
+                                  re_create_ikb)
             LOGGER.error("【创建账户】：重复账户 or 未知错误！")
         else:
             # 创建成功后立即更新计数器
@@ -86,15 +93,23 @@ async def create_user(_, call, us, stats):
                 ex = '__无需保号，放心食用__'
                 
             emby_line_variable = config.emby_line.format(name=emby_name, pwd=pwd)
-            await editMessage(send,
-                              f'**▎创建用户成功🎉**\n\n'
-                              f'· 用户名称 | `{emby_name}`\n'
-                              f'· 用户密码 | `{pwd}`\n'
-                              f'· 安全密码 | `{emby_pwd2}`（仅发送一次）\n'
-                              f'· 到期时间 | `{ex}`\n'
-                              f'· 当前线路：\n'
-                              f'{emby_line_variable}\n\n'
-                              f'**·【服务器】 - 查看线路和密码**')
+            success_msg = (f'**▎创建用户成功🎉**\n\n'
+                           f'· 用户名称 | `{emby_name}`\n'
+                           f'· 用户密码 | `{pwd}`\n'
+                           f'· 安全密码 | `{emby_pwd2}`（仅发送一次）\n'
+                           f'· 到期时间 | `{ex}`\n'
+                           f'· 当前线路：\n'
+                           f'{emby_line_variable}\n\n'
+                           f'**·【服务器】 - 查看线路和密码**')
+            
+            if is_queued:
+                try:
+                    await send.delete()
+                except:
+                    pass
+                await bot.send_message(call.from_user.id, success_msg)
+            else:
+                await editMessage(send, success_msg)
             
             LOGGER.info(f"【创建账户】[开注状态]：{call.from_user.id} - 建立了 {emby_name} ") if stats else LOGGER.info(
                 f"【创建账户】：{call.from_user.id} - 建立了 {emby_name} ")
@@ -159,11 +174,13 @@ async def create(_, call, passed_captcha=False):
                 pass
             return
 
-        send = await callAnswer(call, f'🪙 资质核验成功，请稍后。', True)
+        send = await callAnswer(call, f'🪙 资质核验成功，处理排队中...', True)
         if send is False:
             return
         else:
-            await create_user(_, call, us=e.us, stats=False)
+            from bot.func_helper.registration_queue import registration_queue
+            await registration_queue.put((call.from_user.id, e.us, False, call))
+            await editMessage(call, '✅ **您的注册请求已受理！**\n\n系统正按队列满跑生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
     elif config.open.stat:
         if not passed_captcha:
             from bot.func_helper.captcha import generate_math_captcha, check_active_captcha
@@ -178,11 +195,13 @@ async def create(_, call, passed_captcha=False):
                 pass
             return
 
-        send = await callAnswer(call, f"🪙 开放注册中，免除资质核验。", True)
+        send = await callAnswer(call, f"🪙 开放注册队列生成中，请耐心等待通知。", True)
         if send is False:
             return
         else:
-            await create_user(_, call, us=config.open.open_us, stats=True)
+            from bot.func_helper.registration_queue import registration_queue
+            await registration_queue.put((call.from_user.id, config.open.open_us, True, call))
+            await editMessage(call, '✅ **您的注册请求已受理并排队！**\n\n当前人数较多，系统正按队列生成账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
 
 
 # 换绑tg
