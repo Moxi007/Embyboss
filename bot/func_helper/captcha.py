@@ -57,6 +57,25 @@ def check_active_captcha(user_id: int):
         return True
     return False
 
+import asyncio
+from bot import bot
+
+async def clear_captcha_later(user_id: int, msg_obj=None):
+    """
+    60秒后自动清理验证码锁，如果传了msg_obj还会尝试删掉验证码消息
+    """
+    await asyncio.sleep(60)
+    # 不管用户点没点，60秒锁定期一过，强制清理掉锁，防止卡死
+    req = captcha_cache.get(f"captcha_req_{user_id}")
+    if req:
+        # 如果还在缓存里说明没被验证通过删除
+        captcha_cache.delete(f"captcha_req_{user_id}")
+        if msg_obj:
+            try:
+                await msg_obj.delete()
+            except Exception:
+                pass
+
 def verify_math_captcha(user_id: int, selected_ans: int):
     """
     验证数学验证码。

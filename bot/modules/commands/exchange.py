@@ -32,7 +32,10 @@ async def rgs_code(_, msg, register_code, passed_captcha=False):
             return await sendMessage(msg, "⚠️ 您有未完成的验证码，请在聊天记录中查看并完成它（如找不到请等待1分钟重试）。")
         question, keyboard = generate_math_captcha(user_id, "rgs_code", {"code": register_code})
         try:
-            await bot.send_message(user_id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案（倒计时 120s）：\n\n**{question}**", reply_markup=keyboard)
+            sent_msg = await bot.send_message(user_id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案（倒计时 120s）：\n\n**{question}**", reply_markup=keyboard)
+            from bot.func_helper.captcha import clear_captcha_later
+            import asyncio
+            asyncio.create_task(clear_captcha_later(user_id, sent_msg))
         except Exception:
             pass
         return

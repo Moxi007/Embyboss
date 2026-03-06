@@ -19,7 +19,7 @@ async def queue_worker():
             LOGGER.info(f"⏳ 正在处理队列中的注册请求: 用户ID {tg_id}")
             
             # 引入实际的注册逻辑
-            from bot.func_helper.emby import create_user
+            from bot.modules.panel.member_panel import create_user
             
             # 因为 create_user 原版依赖 call 对象进行 editMessage
             # 我们在后台调用它时，仍然传入原始 call。但如果超时，editMessage 可能会失败。

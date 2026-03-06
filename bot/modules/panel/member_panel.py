@@ -169,7 +169,10 @@ async def create(_, call, passed_captcha=False):
             await callAnswer(call, "正在生成验证码...", False)
             question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": e.us, "stats": False})
             try:
-                await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
+                sent_msg = await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
+                from bot.func_helper.captcha import clear_captcha_later
+                import asyncio
+                asyncio.create_task(clear_captcha_later(call.from_user.id, sent_msg))
             except Exception:
                 pass
             return
@@ -190,7 +193,10 @@ async def create(_, call, passed_captcha=False):
             await callAnswer(call, "正在生成验证码...", False)
             question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": config.open.open_us, "stats": True})
             try:
-                await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
+                sent_msg = await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
+                from bot.func_helper.captcha import clear_captcha_later
+                import asyncio
+                asyncio.create_task(clear_captcha_later(call.from_user.id, sent_msg))
             except Exception:
                 pass
             return
