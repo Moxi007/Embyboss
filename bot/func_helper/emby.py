@@ -1382,8 +1382,8 @@ class Embyservice(metaclass=Singleton):
         :return: 统计文本
         """
         try:
-            # 创建暂时加长超时时间的会话进行请求
-            timeout = aiohttp.ClientTimeout(total=30)
+            # 创建临时会话进行请求
+            timeout = aiohttp.ClientTimeout(total=10)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 url = f"{config.emby_url}/emby/Items/Counts?api_key={config.emby_api}"
                 async with session.get(url) as response:
