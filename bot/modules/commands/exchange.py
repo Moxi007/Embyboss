@@ -21,7 +21,7 @@ def is_renew_code(input_string):
         return False
 
 
-async def rgs_code(_, msg, register_code, passed_captcha=False):
+async def rgs_code(_, msg, register_code):
     if config.open.stat:
         return await sendMessage(msg, "🤧 自由注册开启下无法使用注册码。")
 

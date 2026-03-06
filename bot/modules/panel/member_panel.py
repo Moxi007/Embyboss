@@ -144,7 +144,7 @@ async def members(_, call):
 @bot.on_callback_query(filters.regex('create') & user_in_group_on_filter)
 @debounce(wait=2)
 @dedup()
-async def create(_, call, passed_captcha=False):
+async def create(_, call):
     """
     高并发注册入口：去掉验证码，直接入队排队注册。
     通过 debounce + 队列去重 双重防刷。
