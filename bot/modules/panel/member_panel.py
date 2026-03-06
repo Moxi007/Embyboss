@@ -177,13 +177,20 @@ async def create(_, call, passed_captcha=False):
                 pass
             return
 
-        send = await callAnswer(call, f'🪙 资质核验成功，处理排队中...', True)
-        if send is False:
-            return
-        else:
-            from bot.func_helper.registration_queue import registration_queue
-            await registration_queue.put((call.from_user.id, e.us, False, call))
+        # 验证码验证通过后 callAnswer 已经在 captcha_cb 里调用过了
+        # Telegram 不允许同一个 callback query 被 answer 两次
+        # 所以这里跳过 callAnswer，直接进入排队
+        if not passed_captcha:
+            send = await callAnswer(call, f'🪙 资质核验成功，处理排队中...', True)
+            if send is False:
+                return
+        from bot.func_helper.registration_queue import registration_queue
+        await registration_queue.put((call.from_user.id, e.us, False, call))
+        try:
             await editMessage(call, '✅ **您的注册请求已受理！**\n\n系统正按队列满跑生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
+        except Exception:
+            # 验证码通道进来时消息已被删除，改用私聊通知
+            await bot.send_message(call.from_user.id, '✅ **您的注册请求已受理！**\n\n系统正按队列满跑生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
     elif config.open.stat:
         if not passed_captcha:
             from bot.func_helper.captcha import generate_math_captcha, check_active_captcha
@@ -201,13 +208,16 @@ async def create(_, call, passed_captcha=False):
                 pass
             return
 
-        send = await callAnswer(call, f"🪙 开放注册队列生成中，请耐心等待通知。", True)
-        if send is False:
-            return
-        else:
-            from bot.func_helper.registration_queue import registration_queue
-            await registration_queue.put((call.from_user.id, config.open.open_us, True, call))
+        if not passed_captcha:
+            send = await callAnswer(call, f"🪙 开放注册队列生成中，请耐心等待通知。", True)
+            if send is False:
+                return
+        from bot.func_helper.registration_queue import registration_queue
+        await registration_queue.put((call.from_user.id, config.open.open_us, True, call))
+        try:
             await editMessage(call, '✅ **您的注册请求已受理并排队！**\n\n当前人数较多，系统正按队列生成账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
+        except Exception:
+            await bot.send_message(call.from_user.id, '✅ **您的注册请求已受理并排队！**\n\n当前人数较多，系统正按队列生成账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
 
 
 # 换绑tg
