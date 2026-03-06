@@ -10,12 +10,6 @@ from bot.func_helper.utils import judge_admins
 # 使用装饰器语法来定义回调函数，并传递 client 和 call 参数
 @bot.on_callback_query(filters.regex('closeit'))
 async def close_it(_, call):
-    # 清理可能存在的处于活跃状态的验证码缓存（防止卡死）
-    try:
-        from bot.func_helper.captcha import captcha_cache
-        captcha_cache.delete(f"captcha_req_{call.from_user.id}")
-    except BaseException:
-        pass
         
     if call.message.chat.type is ChatType.PRIVATE:
         await deleteMessage(call)
