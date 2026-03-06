@@ -40,5 +40,9 @@ services:
     volumes:
       - ./config.json:/app/config.json
       - ./log:/app/log
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
 #    ports:
 #      - '8838:8838' # 为api服务映射端口 host模式无需操作
