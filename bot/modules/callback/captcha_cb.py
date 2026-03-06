@@ -42,7 +42,7 @@ async def on_captcha(_, call):
             new_req["tries"] = 3 - left_tries
             captcha_cache.set(f"captcha_req_{call.from_user.id}", new_req)
             
-        await editMessage(call, f"❌ 答案错误！您还有 {left_tries} 次机会。\n\n🤖 **防机器人验证**\n重新计算以下算式：\n\n**{question}**", reply_markup=keyboard)
+        await editMessage(call, f"❌ 答案错误！您还有 {left_tries} 次机会。\n\n🤖 **防机器人验证**\n重新计算以下算式：\n\n**{question}**", buttons=keyboard)
         return await callAnswer(call, f"❌ 答案错误！您还有 {left_tries} 次机会。", True)
         
     await callAnswer(call, "✅ 验证通过，处理中...", False)
