@@ -50,17 +50,15 @@ async def on_captcha(_, call):
     action = req.get("action")
     payload = req.get("payload", {})
     
-    if action == "create":
-        from bot.modules.panel.member_panel import create
-        # 直接使用原有的 call 对象，因为底层的 ask_return 会判断 isinstance(update, CallbackQuery)
-        # 用伪造对象会导致判断失败从而按 Message 取 .chat 报错
-        call.data = 'create'
-        await call.message.delete()
-        await create(_, call, passed_captcha=True)
-
-    elif action == "rgs_code":
+    if action == "rgs_code":
         from bot.modules.commands.exchange import rgs_code
         # 发出的验证码由于改在了私聊发出，所以其回答后的载体变成了私密聊天
         mock_msg = MockMsg(call)
         await call.message.delete()
         await rgs_code(_, mock_msg, register_code=payload.get("code"), passed_captcha=True)
+    else:
+        # 未知 action，清理验证码消息
+        try:
+            await call.message.delete()
+        except Exception:
+            pass

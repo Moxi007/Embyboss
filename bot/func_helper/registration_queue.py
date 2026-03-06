@@ -59,9 +59,15 @@ async def queue_worker(worker_id: int = 0):
             break
         except Exception as e:
             LOGGER.error(f"❌ Worker-{worker_id} 处理注册任务异常: {e}")
-            # 出错时也要清除去重标记，否则用户永远无法重新注册
+            # 出错时也要清除去重标记和标记任务完成，否则队列计数器会漂移
             try:
+                registration_queue.task_done()
                 remove_pending_user(tg_id)
+            except:
+                pass
+            # 通知用户注册失败，让其重试
+            try:
+                await bot.send_message(tg_id, "❌ **注册出现异常，请稍后重新点击注册按钮重试。**")
             except:
                 pass
             await asyncio.sleep(0.5)
