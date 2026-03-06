@@ -30,9 +30,13 @@ from bot.sql_helper.sql_emby2 import sql_get_emby2, sql_delete_emby2
 _create_user_lock = asyncio.Lock()
 
 # 创号函数
-async def create_user(_, call, us, stats, is_queued=False):
+async def create_user(_, call, us, stats):
+    """
+    交互式收集用户名密码，然后将实际任务推向异步队列处理。
+    被 create (开放注册) 和 exchange (兑换码注册) 共用。
+    """
     msg = await ask_return(call,
-                           text='🤖**注意：您已进入排队注册流程:\n\n• 请在2min内输入 `[用户名][空格][安全码]`\n• 举个例子🌰：`苏苏 1234`**\n\n• 用户名中不限制中/英文/emoji，🚫**特殊字符**'
+                           text='🤖**注意：您已进入注册流程:\n\n• 请在2min内输入 `[用户名][空格][安全码]`\n• 举个例子🌰：`苏苏 1234`**\n\n• 用户名中不限制中/英文/emoji，🚫**特殊字符**'
                                 '\n• 安全码为敏感操作时附加验证，请填入最熟悉的数字4~6位；退出请点 /cancel', timer=120,
                            button=close_it_ikb)
     if not msg:
@@ -46,73 +50,83 @@ async def create_user(_, call, us, stats, is_queued=False):
     except (IndexError, ValueError):
         await msg.reply(f'⚠️ 输入格式错误\n\n`{msg.text}`\n **会话已结束！**')
     else:
+        # 队列去重检查：防止同一用户提交多份
+        from bot.func_helper.registration_queue import is_user_pending, add_pending_user, registration_queue
+        # 这里之所以用 msg.from_user 因为 call 可能是 CallQuery 也可能是 Message (exchange传来)
+        tg_id = msg.from_user.id
+        if is_user_pending(tg_id):
+            return await msg.reply('⏳ 您的请求正在排队处理中，请勿重复提交，耐心等待私聊通知。')
+            
         send = await msg.reply(
             f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}**  安全码：**{emby_pwd2}** \n\n__正在为您排队并初始化账户，更新策略__......')
         
-        async with _create_user_lock:
-            # 再次检查限制（双重检查），避免排队后超发
-            if config.open.tem >= config.open.all_user:
-                return await editMessage(send, f'**🚫 很抱歉，注册总数({config.open.tem})已达限制({config.open.all_user})。**',
-                                         re_create_ikb)
+        # 加入任务队列 (由 worker 异步消费)
+        add_pending_user(tg_id)
+        await registration_queue.put((tg_id, emby_name, emby_pwd2, us, stats, send))
 
-            # emby api操作
-            data = await emby.emby_create(name=emby_name, days=us)
-        if not data:
-            if is_queued:
-                try:
-                    await send.delete()
-                except:
-                    pass
-                await bot.send_message(call.from_user.id, '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**', reply_markup=re_create_ikb)
-            else:
-                await editMessage(send,
-                                  '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**',
-                                  re_create_ikb)
-            LOGGER.error("【创建账户】：重复账户 or 未知错误！")
+async def process_emby_creation(tg_id, emby_name, emby_pwd2, us, stats, send):
+    """供 worker 消费的核心 Emby 建立与数据库写入函数"""
+    async with _create_user_lock:
+        # 再次检查限制（双重检查），避免排队后超发
+        if config.open.tem >= config.open.all_user:
+            try:
+                await editMessage(send, f'**🚫 很抱歉，注册总数({config.open.tem})已达限制({config.open.all_user})。**',
+                                         re_create_ikb)
+            except:
+                pass
+            return
+
+        # emby api操作
+        data = await emby.emby_create(name=emby_name, days=us)
+        
+    if not data:
+        try:
+            await send.delete()
+        except:
+            pass
+        await bot.send_message(tg_id, '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**', reply_markup=re_create_ikb)
+        LOGGER.error("【创建账户】：重复账户 or 未知错误！")
+    else:
+        # 创建成功后立即更新计数器
+        pwd = data[1]
+        eid = data[0]
+        ex = data[2]
+        
+        # 数据库操作
+        if stats:
+            await sql_update_emby(Emby.tg == tg_id, embyid=eid, name=emby_name, pwd=pwd, pwd2=emby_pwd2, lv='b', cr=datetime.now(), ex=ex) 
         else:
-            # 创建成功后立即更新计数器
-            tg = call.from_user.id
-            pwd = data[1]
-            eid = data[0]
-            ex = data[2]
+            await sql_update_emby(Emby.tg == tg_id, embyid=eid, name=emby_name, pwd=pwd, pwd2=emby_pwd2, lv='b', cr=datetime.now(), ex=ex, us=0)
+        
+        # 更新计数器
+        tem_adduser()
+        
+        if config.schedall.check_ex:
+            ex = ex.strftime("%Y-%m-%d %H:%M:%S")
+        elif config.schedall.low_activity:
+            ex = f'__若{config.activity_check_days}天无观看将封禁__'
+        else:
+            ex = '__无需保号，放心食用__'
             
-            # 数据库操作
-            if stats:
-                await sql_update_emby(Emby.tg == tg, embyid=eid, name=emby_name, pwd=pwd, pwd2=emby_pwd2, lv='b', cr=datetime.now(), ex=ex) 
-            else:
-                await sql_update_emby(Emby.tg == tg, embyid=eid, name=emby_name, pwd=pwd, pwd2=emby_pwd2, lv='b', cr=datetime.now(), ex=ex, us=0)
-            
-            # 更新计数器
-            tem_adduser()
-            
-            if config.schedall.check_ex:
-                ex = ex.strftime("%Y-%m-%d %H:%M:%S")
-            elif config.schedall.low_activity:
-                ex = f'__若{config.activity_check_days}天无观看将封禁__'
-            else:
-                ex = '__无需保号，放心食用__'
-                
-            emby_line_variable = config.emby_line.format(name=emby_name, pwd=pwd)
-            success_msg = (f'**▎创建用户成功🎉**\n\n'
-                           f'· 用户名称 | `{emby_name}`\n'
-                           f'· 用户密码 | `{pwd}`\n'
-                           f'· 安全密码 | `{emby_pwd2}`（仅发送一次）\n'
-                           f'· 到期时间 | `{ex}`\n'
-                           f'· 当前线路：\n'
-                           f'{emby_line_variable}\n\n'
-                           f'**·【服务器】 - 查看线路和密码**')
-            
-            if is_queued:
-                try:
-                    await send.delete()
-                except:
-                    pass
-                await bot.send_message(call.from_user.id, success_msg)
-            else:
-                await editMessage(send, success_msg)
-            
-            LOGGER.info(f"【创建账户】[开注状态]：{call.from_user.id} - 建立了 {emby_name} ") if stats else LOGGER.info(
-                f"【创建账户】：{call.from_user.id} - 建立了 {emby_name} ")
+        emby_line_variable = config.emby_line.format(name=emby_name, pwd=pwd)
+        success_msg = (f'**▎创建用户成功🎉**\n\n'
+                       f'· 用户名称 | `{emby_name}`\n'
+                       f'· 用户密码 | `{pwd}`\n'
+                       f'· 安全密码 | `{emby_pwd2}`（仅发送一次）\n'
+                       f'· 到期时间 | `{ex}`\n'
+                       f'· 当前线路：\n'
+                       f'{emby_line_variable}\n\n'
+                       f'**·【服务器】 - 查看线路和密码**')
+        
+        try:
+            await send.delete()
+        except:
+            pass
+        await bot.send_message(tg_id, success_msg)
+        
+        LOGGER.info(f"【创建账户】[开注状态]：{tg_id} - 建立了 {emby_name} ") if stats else LOGGER.info(
+            f"【创建账户】：{tg_id} - 建立了 {emby_name} ")
+
 
 
 from bot.func_helper.utils import debounce, dedup
@@ -146,8 +160,8 @@ async def members(_, call):
 @dedup()
 async def create(_, call):
     """
-    高并发注册入口：去掉验证码，直接入队排队注册。
-    通过 debounce + 队列去重 双重防刷。
+    高并发注册入口：去掉验证码，直接进入交互。
+    通过 debounce + dedup + 队列去重 三重防刷。
     """
     e = await sql_get_emby(tg=call.from_user.id)
     if not e:
@@ -156,31 +170,14 @@ async def create(_, call):
     if e.embyid:
         return await callAnswer(call, '💦 你已经有账户啦！请勿重复注册。', True)
     
-    # 队列去重检查：防止同一用户重复提交
-    from bot.func_helper.registration_queue import is_user_pending, add_pending_user, registration_queue
-    if is_user_pending(call.from_user.id):
-        return await callAnswer(call, '⏳ 您的注册请求正在排队处理中，请耐心等待私聊通知。', True)
-
     if not config.open.stat and int(e.us) <= 0:
         return await callAnswer(call, f'🤖 自助注册已关闭，等待开启或使用注册码注册。', True)
     elif not config.open.stat and int(e.us) > 0:
         # 积分注册
-        add_pending_user(call.from_user.id)
-        await registration_queue.put((call.from_user.id, e.us, False, call))
-        await callAnswer(call, '🪙 资质核验成功，排队处理中...', True)
-        try:
-            await editMessage(call, '✅ **您的注册请求已受理！**\n\n系统正按队列生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
-        except Exception:
-            await bot.send_message(call.from_user.id, '✅ **您的注册请求已受理！**\n\n系统正按队列生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
+        await create_user(_, call, us=e.us, stats=False)
     elif config.open.stat:
         # 开放注册
-        add_pending_user(call.from_user.id)
-        await registration_queue.put((call.from_user.id, config.open.open_us, True, call))
-        await callAnswer(call, '🪙 排队注册中，请等待通知...', True)
-        try:
-            await editMessage(call, '✅ **您的注册请求已受理并排队！**\n\n当前人数较多，系统正按队列生成账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
-        except Exception:
-            await bot.send_message(call.from_user.id, '✅ **您的注册请求已受理并排队！**\n\n当前人数较多，系统正按队列生成账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
+        await create_user(_, call, us=config.open.open_us, stats=True)
 
 
 # 换绑tg

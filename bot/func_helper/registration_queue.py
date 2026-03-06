@@ -37,14 +37,14 @@ async def queue_worker(worker_id: int = 0):
         try:
             # 阻塞等待队列中的任务
             task_data = await registration_queue.get()
-            tg_id, us, stats, call = task_data
+            tg_id, emby_name, emby_pwd2, us, stats, send_msg = task_data
 
             LOGGER.info(f"⏳ Worker-{worker_id} 正在处理注册请求: 用户ID {tg_id}")
 
             # 引入实际的注册逻辑
-            from bot.modules.panel.member_panel import create_user
+            from bot.modules.panel.member_panel import process_emby_creation
 
-            await create_user(None, call, us=us, stats=stats, is_queued=True)
+            await process_emby_creation(tg_id, emby_name, emby_pwd2, us, stats, send_msg)
 
             # 标记任务完成并清除去重标记
             registration_queue.task_done()
