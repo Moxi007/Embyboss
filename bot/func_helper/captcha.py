@@ -1,4 +1,5 @@
 import random
+import time
 from cacheout import Cache
 from pyromod.helpers import array_chunk, ikb
 
@@ -44,8 +45,17 @@ def generate_math_captcha(user_id: int, action: str, payload: dict = None):
     keyboard = ikb(lines)
     
     # 存入缓存
-    captcha_cache.set(f"captcha_req_{user_id}", {"ans": ans, "action": action, "payload": payload or {}, "tries": 0})
+    captcha_cache.set(f"captcha_req_{user_id}", {"ans": ans, "action": action, "payload": payload or {}, "tries": 0, "time": time.time()})
     return question, keyboard
+
+def check_active_captcha(user_id: int):
+    """
+    检查是否有活跃的验证码且未过期（60秒内阻止重发）
+    """
+    req = captcha_cache.get(f"captcha_req_{user_id}")
+    if req and time.time() - req.get("time", 0) < 60:
+        return True
+    return False
 
 def verify_math_captcha(user_id: int, selected_ans: int):
     """

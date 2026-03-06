@@ -100,8 +100,11 @@ async def create_user(_, call, us, stats):
                 f"【创建账户】：{call.from_user.id} - 建立了 {emby_name} ")
 
 
+from bot.func_helper.utils import debounce
+
 # 键盘中转
 @bot.on_callback_query(filters.regex('members'))
+@debounce(wait=1)
 async def members(_, call):
     data = await members_info(tg=call.from_user.id)
     if not data:
@@ -123,6 +126,7 @@ async def members(_, call):
 
 # 创建账户
 @bot.on_callback_query(filters.regex('create') & user_in_group_on_filter)
+@debounce(wait=2)
 async def create(_, call, passed_captcha=False):
     """
 
@@ -143,7 +147,11 @@ async def create(_, call, passed_captcha=False):
         await callAnswer(call, f'🤖 自助注册已关闭，等待开启或使用注册码注册。', True)
     elif not config.open.stat and int(e.us) > 0:
         if not passed_captcha:
-            from bot.func_helper.captcha import generate_math_captcha
+            from bot.func_helper.captcha import generate_math_captcha, check_active_captcha
+            if check_active_captcha(call.from_user.id):
+                await callAnswer(call, "⚠️ 您有未完成的验证码，请在聊天记录中查看并完成它（如找不到请等待1分钟重试）。", True)
+                return
+            await callAnswer(call, "正在生成验证码...", False)
             question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": e.us, "stats": False})
             try:
                 await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
@@ -158,7 +166,11 @@ async def create(_, call, passed_captcha=False):
             await create_user(_, call, us=e.us, stats=False)
     elif config.open.stat:
         if not passed_captcha:
-            from bot.func_helper.captcha import generate_math_captcha
+            from bot.func_helper.captcha import generate_math_captcha, check_active_captcha
+            if check_active_captcha(call.from_user.id):
+                await callAnswer(call, "⚠️ 您有未完成的验证码，请在聊天记录中查看并完成它（如找不到请等待1分钟重试）。", True)
+                return
+            await callAnswer(call, "正在生成验证码...", False)
             question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": config.open.open_us, "stats": True})
             try:
                 await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
@@ -324,6 +336,7 @@ async def change_tg(_, call):
 
 
 @bot.on_callback_query(filters.regex('bindtg') & user_in_group_on_filter)
+@debounce(wait=2)
 async def bind_tg(_, call):
     if not getattr(config.open, "bindtg", False):
         await call.answer("⚠️ 绑定TG功能已关闭", show_alert=True)
@@ -593,6 +606,7 @@ async def user_emby_unblock(_, call):
 
 
 @bot.on_callback_query(filters.regex('exchange') & user_in_group_on_filter)
+@debounce(wait=2)
 async def call_exchange(_, call):
     await asyncio.gather(callAnswer(call, '🔋 使用注册/续期码'), deleteMessage(call))
     msg = await ask_return(call, text='🔋 **【使用注册/续期码】**：\n\n'
@@ -607,6 +621,7 @@ async def call_exchange(_, call):
 
 
 @bot.on_callback_query(filters.regex('storeall'))
+@debounce(wait=1)
 async def do_store(_, call):
     await asyncio.gather(callAnswer(call, '✔️ 欢迎进入兑换商店'),
                          editMessage(call,
@@ -615,6 +630,7 @@ async def do_store(_, call):
 
 
 @bot.on_callback_query(filters.regex('store-reborn'))
+@debounce(wait=2)
 async def do_store_reborn(_, call):
     e = await sql_get_emby(tg=call.from_user.id)
     if not e:
@@ -648,6 +664,7 @@ async def do_store_reborn(_, call):
 
 
 @bot.on_callback_query(filters.regex('store-whitelist'))
+@debounce(wait=2)
 async def do_store_whitelist(_, call):
     if config.open.whitelist:
         e = await sql_get_emby(tg=call.from_user.id)
@@ -670,6 +687,7 @@ async def do_store_whitelist(_, call):
 
 
 @bot.on_callback_query(filters.regex('store-invite'))
+@debounce(wait=2)
 async def do_store_invite(_, call):
     if config.open.invite:
         e = await sql_get_emby(tg=call.from_user.id)

@@ -26,8 +26,10 @@ async def rgs_code(_, msg, register_code, passed_captcha=False):
         return await sendMessage(msg, "🤧 自由注册开启下无法使用注册码。")
 
     if not passed_captcha:
-        from bot.func_helper.captcha import generate_math_captcha
+        from bot.func_helper.captcha import generate_math_captcha, check_active_captcha
         user_id = msg.from_user.id
+        if check_active_captcha(user_id):
+            return await sendMessage(msg, "⚠️ 您有未完成的验证码，请在聊天记录中查看并完成它（如找不到请等待1分钟重试）。")
         question, keyboard = generate_math_captcha(user_id, "rgs_code", {"code": register_code})
         try:
             await bot.send_message(user_id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案（倒计时 120s）：\n\n**{question}**", reply_markup=keyboard)

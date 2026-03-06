@@ -268,6 +268,37 @@ def split_long_message(content, max_length=2000):
     
     return messages
 
+import functools
+import time
+
+def debounce(wait=1):
+    """
+    防抖装饰器，防止用户短时间内多次点击重复触发。
+    利用cacheout库缓存user_id，在指定时间内拒绝相同操作
+    """
+    def decorator(fn):
+        @functools.wraps(fn)
+        async def wrapper(client, call, *args, **kwargs):
+            from pyrogram.types import CallbackQuery
+            if not isinstance(call, CallbackQuery):
+                return await fn(client, call, *args, **kwargs)
+                
+            user_id = call.from_user.id
+            action_name = fn.__name__
+            cache_key = f"debounce_{user_id}_{action_name}"
+            
+            # 如果缓存中有记录，说明点击太快了
+            if cache.get(cache_key):
+                from bot.func_helper.msg_utils import callAnswer
+                await callAnswer(call, "🕒 请不要频繁点击", show_alert=False)
+                return
+                
+            # 设置缓存拦截，ttl=wait
+            cache.set(cache_key, True, ttl=wait)
+            return await fn(client, call, *args, **kwargs)
+        return wrapper
+    return decorator
+
 
 import abc
 

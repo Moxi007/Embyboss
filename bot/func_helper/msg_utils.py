@@ -13,6 +13,8 @@ from pyrogram.types import LinkPreviewOptions
 from bot import LOGGER, bot, config
 from typing import Optional
 
+# 全局发信并发锁，控制机器人每秒钟最大请求数不超过25
+_global_msg_semaphore = asyncio.Semaphore(25)
 
 # 将来自己要是重写，希望不要把/cancel当关键词，用call.data，省代码还好看，切记。
 
@@ -29,18 +31,23 @@ async def sendMessage(message, text: str, buttons=None, timer=None, send=False, 
     if isinstance(message, CallbackQuery):
         message = message.message
     try:
-        if send is True:
-            if chat_id is None:
-                chat_id = config.group[0]
-            return await bot.send_message(chat_id=chat_id, text=text, reply_markup=buttons, parse_mode=parse_mode)
-        # 禁用通知 disable_notification=True,
-        send = await message.reply(text=text, link_preview_options=LinkPreviewOptions(is_disabled=True), reply_markup=buttons)
+        async with _global_msg_semaphore:
+            if send is True:
+                if chat_id is None:
+                    chat_id = config.group[0]
+                send_ret = await bot.send_message(chat_id=chat_id, text=text, reply_markup=buttons, parse_mode=parse_mode)
+            else:
+                # 禁用通知 disable_notification=True,
+                send_ret = await message.reply(text=text, link_preview_options=LinkPreviewOptions(is_disabled=True), reply_markup=buttons)
+            await asyncio.sleep(0.04) # 铺平请求，确保1秒内最多25次
+            
         if timer is not None:
-            return await deleteMessage(send, timer)
+            return await deleteMessage(send_ret, timer)
         return True
     except FloodWait as f:
         LOGGER.warning(str(f))
-        await sleep(f.value * 1.2)
+        import random
+        await sleep(f.value + random.uniform(0.5, 2.0))
         return await sendMessage(message, text, buttons, parse_mode=parse_mode)
     except Exception as e:
         LOGGER.error(str(e))
@@ -58,13 +65,16 @@ async def editMessage(message, text: str, buttons=None, timer=None, parse_mode: 
     if isinstance(message, CallbackQuery):
         message = message.message
     try:
-        edt = await message.edit(text=text, link_preview_options=LinkPreviewOptions(is_disabled=True), reply_markup=buttons, parse_mode=parse_mode)
+        async with _global_msg_semaphore:
+            edt = await message.edit(text=text, link_preview_options=LinkPreviewOptions(is_disabled=True), reply_markup=buttons, parse_mode=parse_mode)
+            await asyncio.sleep(0.04)
         if timer is not None:
             return await deleteMessage(edt, timer)
         return True
     except FloodWait as f:
         LOGGER.warning(str(f))
-        await sleep(f.value * 1.2)
+        import random
+        await sleep(f.value + random.uniform(0.5, 2.0))
         return await editMessage(message, text, buttons, parse_mode=parse_mode)
     except BadRequest as e:
         if e.ID == 'BUTTON_URL_INVALID':
@@ -122,22 +132,27 @@ async def sendPhoto(message, photo, caption=None, buttons=None, timer=None, send
     if isinstance(message, CallbackQuery):
         message = message.message
     try:
-        if send is True:
-            if chat_id is None:
-                chat_id = config.group[0]
-            return await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption, reply_markup=buttons, parse_mode=parse_mode)
-        send = await message.reply_photo(photo=photo, caption=caption, disable_notification=True,
-                                         reply_markup=buttons, parse_mode=parse_mode)
+        async with _global_msg_semaphore:
+            if send is True:
+                if chat_id is None:
+                    chat_id = config.group[0]
+                send_ret = await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption, reply_markup=buttons, parse_mode=parse_mode)
+            else:
+                send_ret = await message.reply_photo(photo=photo, caption=caption, disable_notification=True,
+                                                reply_markup=buttons, parse_mode=parse_mode)
+            await asyncio.sleep(0.04)
         if timer is not None:
-            return await deleteMessage(send, timer)
+            return await deleteMessage(send_ret, timer)
         return True
     except FloodWait as f:
         LOGGER.warning(str(f))
-        await sleep(f.value * 1.2)
+        import random
+        await sleep(f.value + random.uniform(0.5, 2.0))
         return await sendPhoto(message, photo, caption, buttons, timer, send, chat_id, parse_mode)
     except Exception as e:
         LOGGER.error(str(e))
         return str(e)
+
 
 
 async def deleteMessage(message, timer=None):
@@ -151,11 +166,14 @@ async def deleteMessage(message, timer=None):
         await asyncio.sleep(timer)
     if isinstance(message, CallbackQuery):
         try:
-            await message.message.delete()
+            async with _global_msg_semaphore:
+                await message.message.delete()
+                await asyncio.sleep(0.04)
             return await callAnswer(message, '✔️ Done!')  # 返回 True 表示删除成功
         except FloodWait as f:
             LOGGER.warning(str(f))
-            await asyncio.sleep(f.value * 1.2)
+            import random
+            await asyncio.sleep(f.value + random.uniform(0.5, 2.0))
             return await deleteMessage(message, timer)  # 重新调用自己的函数
         except Forbidden as e:
             await callAnswer(message, f'⚠️ 消息已过期，请重新 唤起面板\n/start', True)
@@ -166,11 +184,14 @@ async def deleteMessage(message, timer=None):
             return str(e)  # 返回异常字符串表示删除出错
     else:
         try:
-            await message.delete()
+            async with _global_msg_semaphore:
+                await message.delete()
+                await asyncio.sleep(0.04)
             return True  # 返回 True 表示删除成功
         except FloodWait as f:
             LOGGER.warning(str(f))
-            await asyncio.sleep(f.value * 1.2)
+            import random
+            await asyncio.sleep(f.value + random.uniform(0.5, 2.0))
             return await deleteMessage(message, timer)  # 重新调用自己的函数
         except Forbidden as e:
             LOGGER.warning(e)
