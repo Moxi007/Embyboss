@@ -115,11 +115,12 @@ async def create_user(_, call, us, stats, is_queued=False):
                 f"【创建账户】：{call.from_user.id} - 建立了 {emby_name} ")
 
 
-from bot.func_helper.utils import debounce
+from bot.func_helper.utils import debounce, dedup
 
 # 键盘中转
 @bot.on_callback_query(filters.regex('members'))
 @debounce(wait=1)
+@dedup()
 async def members(_, call):
     data = await members_info(tg=call.from_user.id)
     if not data:
@@ -142,6 +143,7 @@ async def members(_, call):
 # 创建账户
 @bot.on_callback_query(filters.regex('create') & user_in_group_on_filter)
 @debounce(wait=2)
+@dedup()
 async def create(_, call, passed_captcha=False):
     """
     高并发注册入口：去掉验证码，直接入队排队注册。
@@ -333,6 +335,7 @@ async def change_tg(_, call):
 
 @bot.on_callback_query(filters.regex('bindtg') & user_in_group_on_filter)
 @debounce(wait=2)
+@dedup()
 async def bind_tg(_, call):
     if not getattr(config.open, "bindtg", False):
         await call.answer("⚠️ 绑定TG功能已关闭", show_alert=True)
@@ -603,6 +606,7 @@ async def user_emby_unblock(_, call):
 
 @bot.on_callback_query(filters.regex('exchange') & user_in_group_on_filter)
 @debounce(wait=2)
+@dedup()
 async def call_exchange(_, call):
     await asyncio.gather(callAnswer(call, '🔋 使用注册/续期码'), deleteMessage(call))
     msg = await ask_return(call, text='🔋 **【使用注册/续期码】**：\n\n'
@@ -618,6 +622,7 @@ async def call_exchange(_, call):
 
 @bot.on_callback_query(filters.regex('storeall'))
 @debounce(wait=1)
+@dedup()
 async def do_store(_, call):
     await asyncio.gather(callAnswer(call, '✔️ 欢迎进入兑换商店'),
                          editMessage(call,
@@ -627,6 +632,7 @@ async def do_store(_, call):
 
 @bot.on_callback_query(filters.regex('store-reborn'))
 @debounce(wait=2)
+@dedup()
 async def do_store_reborn(_, call):
     e = await sql_get_emby(tg=call.from_user.id)
     if not e:
@@ -661,6 +667,7 @@ async def do_store_reborn(_, call):
 
 @bot.on_callback_query(filters.regex('store-whitelist'))
 @debounce(wait=2)
+@dedup()
 async def do_store_whitelist(_, call):
     if config.open.whitelist:
         e = await sql_get_emby(tg=call.from_user.id)
@@ -684,6 +691,7 @@ async def do_store_whitelist(_, call):
 
 @bot.on_callback_query(filters.regex('store-invite'))
 @debounce(wait=2)
+@dedup()
 async def do_store_invite(_, call):
     if config.open.invite:
         e = await sql_get_emby(tg=call.from_user.id)

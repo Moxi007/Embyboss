@@ -300,6 +300,47 @@ def debounce(wait=1):
     return decorator
 
 
+# 全局去重锁集合：记录正在处理中的 (user_id, action_name) 组合
+_dedup_active = set()
+
+
+def dedup(msg="⏳ 您的上一个请求还在处理中，请稍候..."):
+    """
+    去重装饰器：当同一用户的同一操作还在执行中时，阻止重复触发。
+    与 debounce 的区别：
+    - debounce：X 秒内拒绝重复点击（基于时间窗口）
+    - dedup：上一次调用还没执行完就拒绝（基于执行状态）
+
+    用法：@dedup() 或 @dedup(msg="自定义提示")
+    """
+    def decorator(fn):
+        @functools.wraps(fn)
+        async def wrapper(client, call, *args, **kwargs):
+            from pyrogram.types import CallbackQuery
+            if not isinstance(call, CallbackQuery):
+                return await fn(client, call, *args, **kwargs)
+
+            user_id = call.from_user.id
+            action_name = fn.__name__
+            lock_key = (user_id, action_name)
+
+            # 如果该用户的该操作正在执行中，直接拒绝
+            if lock_key in _dedup_active:
+                from bot.func_helper.msg_utils import callAnswer
+                await callAnswer(call, msg, show_alert=True)
+                return
+
+            # 加锁
+            _dedup_active.add(lock_key)
+            try:
+                return await fn(client, call, *args, **kwargs)
+            finally:
+                # 无论成功失败，一律释放锁
+                _dedup_active.discard(lock_key)
+        return wrapper
+    return decorator
+
+
 import abc
 
 

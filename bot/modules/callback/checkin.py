@@ -10,10 +10,11 @@ from bot.func_helper.msg_utils import callAnswer, sendMessage, deleteMessage
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 
 
-from bot.func_helper.utils import debounce
+from bot.func_helper.utils import debounce, dedup
 
 @bot.on_callback_query(filters.regex('checkin') & user_in_group_on_filter)
 @debounce(wait=2)
+@dedup()
 async def user_in_checkin(_, call):
     now = datetime.now(timezone(timedelta(hours=8)))
     today = now.strftime("%Y-%m-%d")
