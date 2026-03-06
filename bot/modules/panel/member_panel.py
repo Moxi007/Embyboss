@@ -144,76 +144,37 @@ async def members(_, call):
 @debounce(wait=2)
 async def create(_, call, passed_captcha=False):
     """
-
-    当队列已满时，用户会收到等待提示。
-    信号量和计数器正确释放。
-    代码保存至收藏夹，改版时勿忘加入排队机制
-    :param _:
-    :param call:
-    :return:
+    高并发注册入口：去掉验证码，直接入队排队注册。
+    通过 debounce + 队列去重 双重防刷。
     """
     e = await sql_get_emby(tg=call.from_user.id)
     if not e:
         return await callAnswer(call, '⚠️ 数据库没有你，请重新 /start录入', True)
 
     if e.embyid:
-        await callAnswer(call, '💦 你已经有账户啦！请勿重复注册。', True)
-    elif not config.open.stat and int(e.us) <= 0:
-        await callAnswer(call, f'🤖 自助注册已关闭，等待开启或使用注册码注册。', True)
+        return await callAnswer(call, '💦 你已经有账户啦！请勿重复注册。', True)
+    
+    # 队列去重检查：防止同一用户重复提交
+    from bot.func_helper.registration_queue import is_user_pending, add_pending_user, registration_queue
+    if is_user_pending(call.from_user.id):
+        return await callAnswer(call, '⏳ 您的注册请求正在排队处理中，请耐心等待私聊通知。', True)
+
+    if not config.open.stat and int(e.us) <= 0:
+        return await callAnswer(call, f'🤖 自助注册已关闭，等待开启或使用注册码注册。', True)
     elif not config.open.stat and int(e.us) > 0:
-        if not passed_captcha:
-            from bot.func_helper.captcha import generate_math_captcha, check_active_captcha
-            if check_active_captcha(call.from_user.id):
-                await callAnswer(call, "⚠️ 您有未完成的验证码，请在聊天记录中查看并完成它（如找不到请等待1分钟重试）。", True)
-                return
-            await callAnswer(call, "正在生成验证码...", False)
-            question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": e.us, "stats": False})
-            try:
-                sent_msg = await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
-                from bot.func_helper.captcha import clear_captcha_later
-                import asyncio
-                asyncio.create_task(clear_captcha_later(call.from_user.id, sent_msg))
-            except Exception:
-                pass
-            return
-
-        # 验证码验证通过后 callAnswer 已经在 captcha_cb 里调用过了
-        # Telegram 不允许同一个 callback query 被 answer 两次
-        # 所以这里跳过 callAnswer，直接进入排队
-        if not passed_captcha:
-            send = await callAnswer(call, f'🪙 资质核验成功，处理排队中...', True)
-            if send is False:
-                return
-        from bot.func_helper.registration_queue import registration_queue
+        # 积分注册
+        add_pending_user(call.from_user.id)
         await registration_queue.put((call.from_user.id, e.us, False, call))
+        await callAnswer(call, '🪙 资质核验成功，排队处理中...', True)
         try:
-            await editMessage(call, '✅ **您的注册请求已受理！**\n\n系统正按队列满跑生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
+            await editMessage(call, '✅ **您的注册请求已受理！**\n\n系统正按队列生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
         except Exception:
-            # 验证码通道进来时消息已被删除，改用私聊通知
-            await bot.send_message(call.from_user.id, '✅ **您的注册请求已受理！**\n\n系统正按队列满跑生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
+            await bot.send_message(call.from_user.id, '✅ **您的注册请求已受理！**\n\n系统正按队列生成您的账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
     elif config.open.stat:
-        if not passed_captcha:
-            from bot.func_helper.captcha import generate_math_captcha, check_active_captcha
-            if check_active_captcha(call.from_user.id):
-                await callAnswer(call, "⚠️ 您有未完成的验证码，请在聊天记录中查看并完成它（如找不到请等待1分钟重试）。", True)
-                return
-            await callAnswer(call, "正在生成验证码...", False)
-            question, keyboard = generate_math_captcha(call.from_user.id, "create", {"us": config.open.open_us, "stats": True})
-            try:
-                sent_msg = await bot.send_message(call.from_user.id, f"🤖 **防机器人验证**\n请计算以下算式并选择正确答案以继续：\n\n**{question}**", reply_markup=keyboard)
-                from bot.func_helper.captcha import clear_captcha_later
-                import asyncio
-                asyncio.create_task(clear_captcha_later(call.from_user.id, sent_msg))
-            except Exception:
-                pass
-            return
-
-        if not passed_captcha:
-            send = await callAnswer(call, f"🪙 开放注册队列生成中，请耐心等待通知。", True)
-            if send is False:
-                return
-        from bot.func_helper.registration_queue import registration_queue
+        # 开放注册
+        add_pending_user(call.from_user.id)
         await registration_queue.put((call.from_user.id, config.open.open_us, True, call))
+        await callAnswer(call, '🪙 排队注册中，请等待通知...', True)
         try:
             await editMessage(call, '✅ **您的注册请求已受理并排队！**\n\n当前人数较多，系统正按队列生成账号，请耐心等待。\n生成成功后机器人将**私聊**为您发送账号及密码信息。')
         except Exception:

@@ -5,37 +5,63 @@ from pyrogram.types import CallbackQuery
 # 全局注册请求队列
 registration_queue = asyncio.Queue()
 
-async def queue_worker():
+# 去重集合：防止同一用户重复入队
+_pending_users = set()
+
+# Worker 数量配置
+WORKER_COUNT = 3
+
+
+def is_user_pending(tg_id: int) -> bool:
+    """检查用户是否已在注册队列中"""
+    return tg_id in _pending_users
+
+
+def add_pending_user(tg_id: int):
+    """标记用户已入队"""
+    _pending_users.add(tg_id)
+
+
+def remove_pending_user(tg_id: int):
+    """移除用户的入队标记"""
+    _pending_users.discard(tg_id)
+
+
+async def queue_worker(worker_id: int = 0):
     """
     后台常驻任务：匀速消费注册队列中的请求，防止瞬间并发压垮数据库。
+    支持多 Worker 并行消费，通过 asyncio.Queue 天然线程安全分发。
     """
-    LOGGER.info("🚀 注册异步处理队列 Worker 已启动...")
+    LOGGER.info(f"🚀 注册队列 Worker-{worker_id} 已启动...")
     while True:
         try:
             # 阻塞等待队列中的任务
             task_data = await registration_queue.get()
             tg_id, us, stats, call = task_data
-            
-            LOGGER.info(f"⏳ 正在处理队列中的注册请求: 用户ID {tg_id}")
-            
+
+            LOGGER.info(f"⏳ Worker-{worker_id} 正在处理注册请求: 用户ID {tg_id}")
+
             # 引入实际的注册逻辑
             from bot.modules.panel.member_panel import create_user
-            
-            # 因为 create_user 原版依赖 call 对象进行 editMessage
-            # 我们在后台调用它时，仍然传入原始 call。但如果超时，editMessage 可能会失败。
-            # 这是正常现象，因为我们已经在加入队列前给 call 回复过 "排队中" 提示。
+
             await create_user(None, call, us=us, stats=stats, is_queued=True)
-            
-            # 标记任务完成
+
+            # 标记任务完成并清除去重标记
             registration_queue.task_done()
-            
-            # 消费限速，每处理一个注册请求，强制等待 0.2 秒（即每秒最多处理 5 个注册请求）
-            # 这可以完全化解几千人并发时的查库写库高峰
-            await asyncio.sleep(0.2)
-            
+            remove_pending_user(tg_id)
+
+            # 消费速率：每个 Worker 处理完一个后等待 0.05 秒
+            # 3 个 Worker 理论峰值 ≈ 60 注册/秒
+            await asyncio.sleep(0.05)
+
         except asyncio.CancelledError:
-            LOGGER.info("⏹️ 注册处理队列 Worker 被取消/关闭。")
+            LOGGER.info(f"⏹️ 注册队列 Worker-{worker_id} 被取消/关闭。")
             break
         except Exception as e:
-            LOGGER.error(f"❌ 处理注册队列任务时发生异常: {e}")
-            await asyncio.sleep(1) # 出错时稍微休眠防死循环
+            LOGGER.error(f"❌ Worker-{worker_id} 处理注册任务异常: {e}")
+            # 出错时也要清除去重标记，否则用户永远无法重新注册
+            try:
+                remove_pending_user(tg_id)
+            except:
+                pass
+            await asyncio.sleep(0.5)
