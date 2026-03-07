@@ -120,7 +120,7 @@ async def cr_link_one(tg: int, times, count, days: int, method: str):
             code_list.append(uid)
             # 使用 base64url 编码以避开 Telegram 深层链接对中文字符的限制
             encoded_uid = base64.urlsafe_b64encode(uid.encode('utf-8')).decode('utf-8').rstrip('=')
-            link = f't.me/{config.bot_name}?start={encoded_uid}\n'
+            link = f'🎫 注册码：`{uid}`\n🔗 点击这里直接注册：t.me/{config.bot_name}?start={encoded_uid}\n\n'
             links += link
             i += 1
     if await sql_add_code(code_list, tg, days) is False:
@@ -157,7 +157,7 @@ async def rn_link_one(tg: int, times, count, days: int, method: str):
             code_list.append(uid)
             # 使用 base64url 编码以避开 Telegram 深层链接对中文字符的限制
             encoded_uid = base64.urlsafe_b64encode(uid.encode('utf-8')).decode('utf-8').rstrip('=')
-            link = f't.me/{config.bot_name}?start={encoded_uid}\n'
+            link = f'🎫 续期码：`{uid}`\n🔗 点击这里直接续期：t.me/{config.bot_name}?start={encoded_uid}\n\n'
             links += link
             i += 1
     if await sql_add_code(code_list, tg, days) is False:
