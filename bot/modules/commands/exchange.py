@@ -27,7 +27,13 @@ async def rgs_code(_, msg, register_code):
 
     data = await sql_get_emby(tg=msg.from_user.id)
     if not data:
-        return await sendMessage(msg, "出错了，不确定您是否有资格使用，请先 /start")
+        # 新用户通过链接直接来注册，自动建号
+        from bot.sql_helper.sql_emby import sql_add_emby
+        await sql_add_emby(msg.from_user.id)
+        data = await sql_get_emby(tg=msg.from_user.id)
+        if not data:
+            return await sendMessage(msg, "❌ 出错了，无法为您创建初始账户，请联系管理员。")
+            
     embyid = data.embyid
     ex = data.ex
     lv = data.lv

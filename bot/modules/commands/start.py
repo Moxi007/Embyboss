@@ -44,6 +44,8 @@ async def count_info(_, msg):
     await sendMessage(msg, text, timer=60)
 
 
+import base64
+
 # 私聊开启面板
 @bot.on_message(filters.command('start', prefixes) & filters.private)
 async def p_start(_, msg):
@@ -54,17 +56,33 @@ async def p_start(_, msg):
                                                 '⁉️ ps：如果您已在群组中且收到此消息，请联系管理员解除您的权限限制，因为被限制用户无法使用本bot。',
                                                 buttons=judge_group_ikb))
     try:
-        u = msg.command[1].split('-')[0]
+        raw_cmd = msg.command[1]
+        
+        # 尝试 Base64URL 解码 (兼容旧版直接传递代码)
+        if '-' not in raw_cmd:
+            try:
+                # 补齐 padding 进行解码
+                padding = 4 - (len(raw_cmd) % 4)
+                if padding != 4:
+                    raw_cmd += '=' * padding
+                decoded_cmd = base64.urlsafe_b64decode(raw_cmd).decode('utf-8')
+                raw_cmd = decoded_cmd
+            except Exception as e:
+                pass
+                
+        u = raw_cmd.split('-')[0]
         if u == 'userip':
-            name = msg.command[1].split('-')[1]
+            name = raw_cmd.split('-')[1]
             if judge_admins(msg.from_user.id):
                 return await user_cha_ip(_, msg, name)
             else:
                 return await sendMessage(msg, '💢 你不是管理员，无法使用此命令')
+        
+        # 使用 in 来放宽匹配，或者直接正则匹配
         if u in f'{config.ranks.logo}' or u == str(msg.from_user.id):
-            await asyncio.gather(msg.delete(), rgs_code(_, msg, register_code=msg.command[1]))
+            await rgs_code(_, msg, register_code=raw_cmd)
         else:
-            await asyncio.gather(sendMessage(msg, '🤺 你也想和bot击剑吗 ?'), msg.delete())
+            await sendMessage(msg, '🤺 你也想和bot击剑吗 ?')
     except (IndexError, TypeError):
         exist_emby_data = await sql_get_emby(msg.from_user.id)
         if not exist_emby_data:

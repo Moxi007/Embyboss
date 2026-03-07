@@ -89,6 +89,8 @@ async def pwd_create(length=8, chars=string.ascii_letters + string.digits):
     return ''.join([choice(chars) for i in range(length)])
 
 
+import base64
+
 # 创建注册
 async def cr_link_one(tg: int, times, count, days: int, method: str):
     """
@@ -116,7 +118,9 @@ async def cr_link_one(tg: int, times, count, days: int, method: str):
             p = await pwd_create(10)
             uid = f'{config.ranks.logo}-{times}-Register_{p}'
             code_list.append(uid)
-            link = f't.me/{config.bot_name}?start={uid}\n'
+            # 使用 base64url 编码以避开 Telegram 深层链接对中文字符的限制
+            encoded_uid = base64.urlsafe_b64encode(uid.encode('utf-8')).decode('utf-8').rstrip('=')
+            link = f't.me/{config.bot_name}?start={encoded_uid}\n'
             links += link
             i += 1
     if await sql_add_code(code_list, tg, days) is False:
@@ -151,7 +155,9 @@ async def rn_link_one(tg: int, times, count, days: int, method: str):
             p = await pwd_create(10)
             uid = f'{config.ranks.logo}-{times}-Renew_{p}'
             code_list.append(uid)
-            link = f't.me/{config.bot_name}?start={uid}\n'
+            # 使用 base64url 编码以避开 Telegram 深层链接对中文字符的限制
+            encoded_uid = base64.urlsafe_b64encode(uid.encode('utf-8')).decode('utf-8').rstrip('=')
+            link = f't.me/{config.bot_name}?start={encoded_uid}\n'
             links += link
             i += 1
     if await sql_add_code(code_list, tg, days) is False:
