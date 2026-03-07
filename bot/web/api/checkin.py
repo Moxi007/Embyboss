@@ -435,13 +435,7 @@ async def verify_checkin(
         else:
             new_days = 1
             
-        # 根据当月累计天数阶梯奖励
-        if 1 <= new_days <= 15:
-            reward = random.randint(3, 4)
-        elif 16 <= new_days <= 27:
-            reward = random.randint(4, 5)
-        else:
-            reward = random.randint(2, 3)
+        reward = random.randint(1, 8)
 
         new_balance = e.iv + reward
 

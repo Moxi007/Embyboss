@@ -45,13 +45,7 @@ async def user_in_checkin(_, call):
             else:
                 new_days = 1
 
-            # 根据当月累计天数阶梯奖励
-            if 1 <= new_days <= 15:
-                reward = random.randint(3, 4)
-            elif 16 <= new_days <= 27:
-                reward = random.randint(4, 5)
-            else:
-                reward = random.randint(2, 3)
+            reward = random.randint(1, 8)
 
             s = e.iv + reward
             await sql_update_emby(Emby.tg == call.from_user.id, iv=s, ch=now, checkin_days=new_days)
