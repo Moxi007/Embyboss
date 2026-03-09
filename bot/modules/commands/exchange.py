@@ -12,6 +12,7 @@ from bot.sql_helper.sql_emby import sql_get_emby, Emby
 from bot.sql_helper import Session
 from sqlalchemy import select, update
 from pyrogram.errors import PeerIdInvalid
+import aiohttp
 
 
 def is_renew_code(input_string):
@@ -133,6 +134,22 @@ async def rgs_code(_, msg, register_code):
                               send=True)
             LOGGER.info(
                 f"【注册码】：{msg.from_user.first_name}[{msg.chat.id}] 使用了 {register_code} - {us1}")
+            
+            # 向 EmbyRadar 推送新用户事件（因这里还未建号，emby_name 为空）
+            if getattr(config, "webhook_url", ""):
+                try:
+                    payload = {
+                        "tg_id": msg.from_user.id,
+                        "tg_name": msg.from_user.first_name,
+                        "emby_name": ""
+                    }
+                    async with aiohttp.ClientSession() as web_session:
+                        webhook_url = f"{config.webhook_url.rstrip('/')}/webhook/new_user"
+                        async with web_session.post(webhook_url, json=payload, timeout=5) as resp:
+                            if resp.status != 200:
+                                LOGGER.warning(f"推送新用户 Webhook 到 EmbyRadar 失败, 状态码: {resp.status}")
+                except Exception as e:
+                    LOGGER.error(f"调用 EmbyRadar Webhook 异常: {e}")
             
             from bot.modules.panel.member_panel import create_user
             await create_user(_, msg, us=x, stats=False)
