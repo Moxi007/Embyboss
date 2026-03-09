@@ -9,6 +9,7 @@ import asyncio
 import datetime
 import math
 import random
+import aiohttp
 from datetime import timedelta, datetime
 from bot.schemas import ExDate, Yulv
 from bot import LOGGER, bot, config
@@ -126,6 +127,27 @@ async def process_emby_creation(tg_id, emby_name, emby_pwd2, us, stats, send):
         
         LOGGER.info(f"【创建账户】[开注状态]：{tg_id} - 建立了 {emby_name} ") if stats else LOGGER.info(
             f"【创建账户】：{tg_id} - 建立了 {emby_name} ")
+
+        # 向 EmbyRadar 推送新用户事件，让群聊发贴纸和欢迎语
+        if getattr(config, "webhook_url", ""):
+            try:
+                # 取用户信息段
+                user_info = await bot.get_users(tg_id)
+                tg_name = user_info.first_name if user_info else str(tg_id)
+
+                payload = {
+                    "tg_id": tg_id,
+                    "tg_name": tg_name,
+                    "emby_name": emby_name
+                }
+                async with aiohttp.ClientSession() as session:
+                    # 将外部配置的基础 URL 补充完整
+                    webhook_url = f"{config.webhook_url.rstrip('/')}/webhook/new_user"
+                    async with session.post(webhook_url, json=payload, timeout=5) as resp:
+                        if resp.status != 200:
+                            LOGGER.warning(f"推送新用户 Webhook 到 EmbyRadar 失败, 状态码: {resp.status}")
+            except Exception as e:
+                LOGGER.error(f"调用 EmbyRadar Webhook 异常: {e}")
 
 
 

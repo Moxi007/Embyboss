@@ -228,6 +228,8 @@ class Config(BaseModel):
     activity_check_days: int = 21
     # 封存账号天数，默认5天
     freeze_days: int = 5
+    # 新建用户的 Webhook 推送的基础地址 (例如 http://172.18.0.1:8889)
+    webhook_url: Optional[str] = ""
     # 白名单用户专属的emby线路
     emby_whitelist_line: Optional[str] = None
     # 被拦截的user-agent模式列表
