@@ -302,25 +302,24 @@ async def ch_link(_, call):
     await editMessage(call, text, buttons=keyboard)
 
 # 删除未使用码
-@bot.on_callback_query(filters.regex('delete_codes') & admins_on_filter)
 async def delete_unused_codes(_, call):
-    await callAnswer(call, '⚠️ 请确认要删除码的类别')
     if call.from_user.id != config.owner:
         return await callAnswer(call, '🚫 不可以哦！ 你又不是owner', True)
-    
-    await editMessage(call, 
+
+    await callAnswer(call, '⚠️ 请确认要删除码的类别')
+    await editMessage(call,
         "请回复要删除的未使用码天数类别，多个天数用空格分隔\n"
         "例如: `5 30 180` 将删除属于5天、30天和180天类别的未使用码\n"
         "输入 `all` 删除所有未使用码\n"
         "取消请输入 /cancel")
-    
+
     content = await callListen(call, 120)
     if content is False:
         return
     elif content.text == '/cancel':
         await content.delete()
         return await gm_ikb(_, call)
-        
+
     try:
         if content.text.lower() == 'all':
             count = await sql_delete_all_unused()
@@ -332,7 +331,7 @@ async def delete_unused_codes(_, call):
         await content.delete()
     except ValueError:
         text = "❌ 输入格式错误"
-    
+
     ls=[]
     ls.append(["🔄 继续删除", f"delete_codes"])
     keyboard = ch_link_ikb(ls)
