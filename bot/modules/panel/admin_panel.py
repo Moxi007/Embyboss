@@ -303,9 +303,6 @@ async def ch_link(_, call):
 
 # 删除未使用码
 async def delete_unused_codes(_, call):
-    if call.from_user.id != config.owner:
-        return await callAnswer(call, '🚫 不可以哦！ 你又不是owner', True)
-
     await callAnswer(call, '⚠️ 请确认要删除码的类别')
     await editMessage(call,
         "请回复要删除的未使用码天数类别，多个天数用空格分隔\n"
