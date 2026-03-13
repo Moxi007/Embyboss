@@ -45,7 +45,7 @@ async def user_in_checkin(_, call):
             else:
                 new_days = 1
 
-            reward = random.randint(1, 8)
+            reward = random.randint(1, 10)
 
             s = e.iv + reward
             await sql_update_emby(Emby.tg == call.from_user.id, iv=s, ch=now, checkin_days=new_days)
