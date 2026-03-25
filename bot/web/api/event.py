@@ -360,9 +360,10 @@ async def webhook(request: Request):
                 await send_telegram_message(ban_msg, thread_id=TG_PLAY_THREAD_ID)
                 
                 # 5. 广播到群组通报批评
+                display_user = f"[{emby_username}](tg://user?id={user_record.tg})" if user_record and user_record.tg else f"`{emby_username}`"
                 public_ban_msg = (
                     f"📢 **违规封禁通报** 📢\n\n"
-                    f"用户 `{emby_username}` 因并发播放数量超出限制（当前同时播放 `{count}` 个视频），已被系统自动封禁账号并强制下线。\n\n"
+                    f"用户 {display_user} 因并发播放数量超出限制（当前同时播放 `{count}` 个视频），已被系统自动封禁账号并强制下线。\n\n"
                     f"💡 请大家合理使用账号，感谢配合！"
                 )
                 for group_id in config.group:
