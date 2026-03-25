@@ -645,6 +645,31 @@ class Embyservice(metaclass=Singleton):
             LOGGER.error(f"获取播放数量异常: {str(e)}")
             return -1
 
+    async def get_user_playing_sessions(self, emby_id: str) -> Tuple[int, List[str]]:
+        """
+        获取指定用户当前正在播放的会话数和会话ID列表
+        :param emby_id: 用户ID
+        :return: (并发数, 活动会话ID列表)
+        """
+        try:
+            result = await self._request('GET', '/emby/Sessions')
+            if result.success and result.data:
+                count = 0
+                session_ids = []
+                for session in result.data:
+                    # 检查 UserId 和 NowPlayingItem
+                    if session.get("UserId") == emby_id and session.get("NowPlayingItem"):
+                        count += 1
+                        session_ids.append(session.get("Id"))
+                LOGGER.debug(f"用户 {emby_id} 当前播放并发数: {count}")
+                return count, session_ids
+            else:
+                LOGGER.error(f"获取播放会话失败: {result.error}")
+                return 0, []
+        except Exception as e:
+            LOGGER.error(f"获取播放会话异常: {str(e)}")
+            return 0, []
+
     async def terminate_session(self, session_id: str, reason: str = "Unauthorized client detected") -> bool:
         """
         终止指定的播放会话

@@ -31,6 +31,7 @@
   ],
   "client_filter_terminate_session": true,
   "client_filter_block_user": false,
+  "max_concurrent_sessions": 2,
   "db_host": "localhost",
   "db_user": "",
   "db_pwd": "",

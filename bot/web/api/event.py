@@ -326,6 +326,51 @@ async def webhook(request: Request):
         message_text = build_playback_message(date, tg_info_str, emby_username, emby_user_id, item_data, session_data, login_host, user_level_str, user_expiry_str, ip_location=ip_location)
         await send_telegram_message(message_text, thread_id=TG_PLAY_THREAD_ID, session_id=session_id, user_name=emby_username)
 
+        # 检查并发连接数并处理违规
+        max_concurrent = config.max_concurrent_sessions
+        if max_concurrent > 0 and emby_user_id:
+            from bot.func_helper.emby import emby
+            
+            # 延时一小段时间确保当前播放session已经注册到Emby
+            await asyncio.sleep(2)
+            
+            count, session_ids = await emby.get_user_playing_sessions(emby_user_id)
+            if count > max_concurrent:
+                LOGGER.warning(f"用户 {emby_username}({emby_user_id}) 并发播放数 {count} 超过限制 {max_concurrent}，执行封禁")
+                
+                # 1. 禁用该用户
+                await emby.emby_change_policy(emby_user_id, disable=True)
+                
+                # 2. 更新数据库为封禁状态 (C级)
+                from bot.sql_helper.sql_emby import sql_update_emby, Emby
+                await sql_update_emby(Emby.embyid == emby_user_id, lv="c")
+                
+                # 3. 切断所有在线播放会话
+                for sid in session_ids:
+                    await emby.terminate_session(sid, reason=f"并发播放数({count})超过限制，账号已封禁")
+                    
+                # 4. 发送TG警告通知 (日志频道)
+                ban_msg = (
+                    f"🚫 **并发播放超限封禁**\n\n"
+                    f"👤 用户: `{emby_username}`\n"
+                    f"🆔 EmbyID: `{emby_user_id}`\n"
+                    f"⚠️ 当前并发: `{count}` (上限 `{max_concurrent}`)\n"
+                    f"🛑 操作: **账号已自动封禁并强制踢下线**"
+                )
+                await send_telegram_message(ban_msg, thread_id=TG_PLAY_THREAD_ID)
+                
+                # 5. 广播到群组通报批评
+                public_ban_msg = (
+                    f"📢 **违规封禁通报** 📢\n\n"
+                    f"用户 `{emby_username}` 因并发播放数量超出限制（当前同时播放 `{count}` 个视频），已被系统自动封禁账号并强制下线。\n\n"
+                    f"💡 请大家合理使用账号，感谢配合！"
+                )
+                for group_id in config.group:
+                    try:
+                        await bot.send_message(chat_id=group_id, text=public_ban_msg)
+                    except Exception as e:
+                        LOGGER.error(f"发送通报批评到群组 {group_id} 失败: {str(e)}")
+
     elif event in (EVENT_PLAYBACK_STOP, EVENT_PLAYBACK_PAUSE, EVENT_SESSION_ENDED):
         if session_id:
             await send_playback_stop_reply(session_id, emby_username)
