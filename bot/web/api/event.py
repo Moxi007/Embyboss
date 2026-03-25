@@ -344,10 +344,6 @@ async def webhook(request: Request):
                 # 2. 更新数据库为封禁状态 (C级)
                 from bot.sql_helper.sql_emby import sql_update_emby, Emby
                 await sql_update_emby(Emby.embyid == emby_user_id, lv="c")
-                
-                # 3. 切断所有在线播放会话
-                for sid in session_ids:
-                    await emby.terminate_session(sid, reason=f"并发播放数({count})超过限制，账号已封禁")
                     
                 # 4. 发送TG警告通知 (日志频道)
                 ban_msg = (
